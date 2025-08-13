@@ -158,3 +158,10 @@ These are specific, non-negotiable rules to be followed during development.
 - **Data Versioning:** You **SHOULD** use tools like DVC to track the relationship between code, data, and models.
 - **Experiment Tracking:** You **MUST** log all key information for each experiment (metrics, hyperparameters, artifacts).
 - **Separate Exploration from Production:** Use notebooks for exploration (EDA) but **MUST** refactor all logic into modular, testable scripts for production pipelines.
+
+---
+
+## Alignment for this rebuild
+- Follow `rough_docs/rebuild_plan.md` for batched, milestone-based commits and exact messages.
+- Prefer Docker-first; use Poetry-managed virtualenv for native runs.
+- Secrets: provide templates and instructions; never commit real credentials.

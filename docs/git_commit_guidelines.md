@@ -20,3 +20,10 @@
     - No period at the end.
 - **Body** (optional): Provide more context for the change, explaining the 'why' and 'what'. Use a blank line between the subject and the body.
 - **Footer** (optional): Reference issue numbers (`Closes #23`) or denote breaking changes (`BREAKING CHANGE:`).
+
+---
+
+### Commit cadence for this rebuild
+- Use batched commits per milestone batch (see `rough_docs/rebuild_plan.md`).
+- Avoid committing after every file; group related changes and use the exact commit message specified in the plan.
+- Example: `docs: add overview, research notes, and information gathering`.
