@@ -1,12 +1,71 @@
-paths:
-  data_dir: data
-  outputs_dir: outputs
-  models_dir: models
+# -----------------
+# Project Configuration
+# -----------------
+# This file centralizes all configurable parameters for the data processing pipeline.
+# It allows for easy tuning and experimentation without modifying the source code.
 
+# File and Directory Paths
+paths:
+  input_dir: "data/raw"
+  output_dir: "outputs"
+  output_filename: "filtered_dataset.parquet"
+
+# Data Processing Parameters
+data_processing:
+  # The glob pattern to use for discovering input files.
+  file_pattern: "train-*.parquet"
+  # The number of rows to process in a single chunk. This affects memory usage
+  # and the granularity of parallel processing.
+  chunk_size: 256 # Default: 256
+
+# Model and Filtering Parameters
 model_params:
+  # Parameters for the face detection stage (YOLOv8-Face)
   face_detection:
-    # Path to YOLOv8-face model (repo-copied or absolute local path)
+    # Path to the pre-trained YOLOv8 face model file.
     model_path: models/yolov8n-face-lindevs.pt
-    min_confidence: 0.3
-    det_size: 640
-    max_detections: 300
+    # The minimum width and height of a detected face to be considered valid.
+    # This is a core requirement of the project.
+    min_face_size: 100
+    # The confidence score threshold for a detected face to be considered valid.
+    # Faces with a confidence score below this value will be discarded.
+    min_confidence: 0.50
+    # Whether to keep all detected faces per image or only the most likely one.
+    keep_all: false
+    # The target size (width, height) to which cropped faces are resized
+    # before being passed to the classification models.
+    target_size: [224, 224]
+
+  # Parameters for the eyeglass classification stage
+  classification:
+    # The label returned by the classifier library that indicates a positive detection.
+    present_label: "present"
+    # The image format (e.g., JPEG, PNG) for storing the cropped face images.
+    output_image_format: "JPEG"
+
+# Execution Parameters
+execution:
+  # The number of worker processes to use for parallel processing.
+  # If set to null, the application will automatically use all available CPU cores.
+  # For CPU-bound tasks like model inference, it's critical to set this to a
+  # reasonable number (e.g., 2-4) to avoid memory exhaustion, as each worker
+  # loads its own copy of the models. Setting this too high can severely
+  # degrade performance.
+  num_workers: 4 # Default:4
+  diagnostic_serial_mode: false
+  # The batch size for model inference within each worker. This helps manage
+  # memory, especially when running on systems with limited resources.
+  inference_batch_size: 16
+
+logging:
+  level: "INFO"
+  format: "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+
+# -----------------------------------------------------------------------------
+# Report Generation Settings
+# -----------------------------------------------------------------------------
+report_generation:
+  # The number of sample images to save for qualitative analysis.
+  qualitative_analysis_sample_size: 20
+
+# -----------------------------------------------------------------------------

@@ -25,7 +25,8 @@ poetry run python scripts/generate_run_artifacts.py
 
 ## Config notes
 
-- Set model paths in `config/config.yaml` to either:
+- Full config mirrors the original project structure: `paths`, `data_processing`, `model_params.face_detection`, `model_params.classification`, `execution`, `logging`, `report_generation`.
+- Set model paths in `model_params.face_detection.model_path` to either:
   - repo-copied weights: `models/yolov8n-face-lindevs.pt`
   - local absolute paths: `/Users/tom/Models/yolov8n-face-lindevs.pt`
-- Adjust batch sizes and threading only if needed.
+- Adjust `data_processing.chunk_size`, `execution.num_workers`, and `execution.inference_batch_size` per hardware.
