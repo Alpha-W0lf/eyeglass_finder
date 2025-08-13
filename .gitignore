@@ -1,0 +1,30 @@
+# Environments and secrets
+.env
+.env.*
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.build/
+build/
+dist/
+.coverage
+coverage.xml
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editors/OS
+.DS_Store
+.idea/
+.vscode/
+
+# Project-specific (do NOT ignore during rebuild)
+# outputs/
+# data/
