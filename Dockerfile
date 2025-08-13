@@ -31,6 +31,7 @@ RUN pip install --upgrade pip && pip install cmake==3.28.3
 FROM base as deps_base
 RUN pip install --no-cache-dir poetry
 COPY poetry.lock pyproject.toml ./
+COPY libs ./libs
 
 FROM deps_base as prod_deps
 RUN poetry install --no-root --only main
