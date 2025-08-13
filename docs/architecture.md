@@ -26,6 +26,11 @@
 - Controls paths, batching, thresholds, model params, and device selection
 - Model weights path must be repo-copied or absolute local paths
 
+## Hardware selection
+
+- Device selection is automatic via `src/utils/device.py` (CUDA → MPS → CPU)
+- Native runs may leverage Apple Silicon GPU; Docker runs default to CPU unless GPU is configured on Linux/WSL2
+
 ## Mermaid (placeholder)
 
 ```mermaid
