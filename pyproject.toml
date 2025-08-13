@@ -12,8 +12,8 @@ pyarrow = "^17.0.0"
 torch = "2.3.1"
 torchvision = "0.18.1"
 opencv-python = "^4.10.0.84"
-# glasses-detector will be vendored and added later in Milestone I as a path dependency
-# glasses-detector = { path = "libs/glasses-detector", develop = false }
+# Vendored fork to resolve version constraints
+glasses-detector = { path = "libs/glasses-detector", develop = false }
 tqdm = "^4.66.4"
 numpy = "^1.26.4"
 loguru = "^0.7.2"
