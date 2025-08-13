@@ -71,7 +71,7 @@ This repository provides more than just the final dataset; it includes all inter
 ### Key Files Explained
 
 #### `filtered_dataset.parquet` (Final Output)
-This is the primary deliverable. It contains the 67 rows corresponding to the faces that were identified as the target class (wearing eyeglasses, not sunglasses).
+This is the primary output. It contains the 67 rows corresponding to the faces that were identified as the target class (wearing eyeglasses, not sunglasses).
 
 **Schema:**
 | Column                  | Type        | Description                                                       |

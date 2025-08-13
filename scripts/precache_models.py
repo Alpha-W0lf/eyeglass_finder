@@ -1,5 +1,6 @@
 from pathlib import Path
 import shutil
+import os
 
 DEFAULT_MODELS = [
     ("yolov8n-face-lindevs.pt", "models/yolov8n-face-lindevs.pt"),
@@ -21,5 +22,6 @@ def precache_from_local(local_dir: Path) -> None:
 
 
 if __name__ == "__main__":
-    # Adjust this path if your local models live elsewhere
-    precache_from_local(Path("/Users/tom/Documents/Git/stability_ai_take_home/models"))
+    # Use MODELS_DIR env var if provided; otherwise default to local ./models
+    models_dir = Path(os.environ.get("MODELS_DIR", "models"))
+    precache_from_local(models_dir)
