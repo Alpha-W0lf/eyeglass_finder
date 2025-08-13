@@ -1,0 +1,44 @@
+services:
+  app:
+    build:
+      context: .
+      target: app
+      args:
+        - GIT_COMMIT_HASH=${GIT_COMMIT_HASH:-unknown}
+    volumes:
+      - ./outputs:/app/outputs
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./notebooks:/app/notebooks
+    command: sh -c "python scripts/process_data.py && python scripts/generate_run_artifacts.py"
+    # GPU access (optional, Linux/WSL2 with NVIDIA Container Toolkit)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  builder:
+    build:
+      context: .
+      target: dev_deps
+    volumes:
+      - .:/app
+
+  test:
+    build:
+      context: .
+      target: test
+    volumes:
+      - .:/app
+    command: pytest --cov=src --cov-report=term-missing --cov-fail-under=80
+
+  poetry:
+    build:
+      context: .
+      target: deps_base
+    volumes:
+      - .:/app
+    entrypoint: ["poetry"]

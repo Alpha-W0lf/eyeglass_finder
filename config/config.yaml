@@ -1,0 +1,12 @@
+paths:
+  data_dir: data
+  outputs_dir: outputs
+  models_dir: models
+
+model_params:
+  face_detection:
+    # Path to YOLOv8-face model (repo-copied or absolute local path)
+    model_path: models/yolov8n-face-lindevs.pt
+    min_confidence: 0.3
+    det_size: 640
+    max_detections: 300
