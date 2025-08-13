@@ -23,7 +23,6 @@ This document provides a comprehensive overview of a production‑grade, fully r
 ## Table of Contents
 
 - [tldr](#tldr)
-- [A Quick Note](#a-quick-note)
 - [Project Overview](#project-overview)
 - [Key Features](#key-features)
 - [High-Level Architecture](#high-level-architecture)
@@ -48,7 +47,7 @@ This document provides a comprehensive overview of a production‑grade, fully r
   - [The Path to Billions of Images: A Microservices Approach](#the-path-to-billions-of-images-a-microservices-approach)
   - [Designed for Extensibility](#designed-for-extensibility)
 - [Limitations and Future Improvements](#limitations-and-future-improvements)
-- [Deliverables](#deliverables)
+- [Project Links](#project-links)
 - [Known Security Issues](#known-security-issues)
 
 ---
