@@ -1,0 +1,22 @@
+**Git Commit Message Standards**
+- **Structure**: Adhere to the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification for clear, automated history analysis.
+    - **Format**: `<type>(<scope>): <subject>`
+- **Type**: Must be one of the following:
+    - `feat`: A new feature for the user.
+    - `fix`: A bug fix for the user.
+    - `docs`: Documentation only changes.
+    - `style`: Changes that do not affect the meaning of the code (white-space, formatting, etc.).
+    - `refactor`: A code change that neither fixes a bug nor adds a feature.
+    - `perf`: A code change that improves performance.
+    - `test`: Adding missing tests or correcting existing ones.
+    - `build`: Changes that affect the build system or external dependencies.
+    - `ci`: Changes to our CI configuration files and scripts.
+    - `chore`: Other changes that don't modify `src` or `test` files.
+- **Scope** (optional): A noun describing the section of the codebase affected (e.g., `config`, `models`, `api`).
+- **Subject**:
+    - Use the imperative, present tense: "change" not "changed" nor "changes".
+    - Keep it concise (under 50 characters).
+    - Do not capitalize the first letter.
+    - No period at the end.
+- **Body** (optional): Provide more context for the change, explaining the 'why' and 'what'. Use a blank line between the subject and the body.
+- **Footer** (optional): Reference issue numbers (`Closes #23`) or denote breaking changes (`BREAKING CHANGE:`).
