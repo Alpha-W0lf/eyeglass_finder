@@ -16,7 +16,7 @@ data_processing:
   file_pattern: "train-*.parquet"
   # The number of rows to process in a single chunk. This affects memory usage
   # and the granularity of parallel processing.
-  chunk_size: 256 # Default: 256
+  chunk_size: 1024 # Default: 256, Ran successfully at 1024
 
 # Model and Filtering Parameters
 model_params:
@@ -51,11 +51,11 @@ execution:
   # reasonable number (e.g., 2-4) to avoid memory exhaustion, as each worker
   # loads its own copy of the models. Setting this too high can severely
   # degrade performance.
-  num_workers: 4 # Default:4
+  num_workers: 6 # Default: 4, Ran successfully at 6
   diagnostic_serial_mode: false
   # The batch size for model inference within each worker. This helps manage
   # memory, especially when running on systems with limited resources.
-  inference_batch_size: 16
+  inference_batch_size: 64 # Default: 16, Ran successfully at 32
 
 logging:
   level: "INFO"

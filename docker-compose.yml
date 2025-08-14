@@ -10,6 +10,8 @@ services:
       - ./data:/app/data
       - ./config:/app/config
       - ./notebooks:/app/notebooks
+    environment:
+      - YOLO_CONFIG_DIR=/tmp/Ultralytics
     command: sh -c "python scripts/process_data.py && python scripts/generate_run_artifacts.py"
     # GPU access (optional, Linux/WSL2 with NVIDIA Container Toolkit)
     # deploy:

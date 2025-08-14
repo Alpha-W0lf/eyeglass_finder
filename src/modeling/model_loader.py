@@ -13,9 +13,9 @@ from typing import Dict
 import logging
 
 from src.modeling.face_detector import FaceDetector
+from src.utils.config import AppConfig
 
 try:
-    # Will be available after Milestone I when vendored
     from glasses_detector import GlassesClassifier  # type: ignore
 except Exception:  # pragma: no cover - optional until vendored
     GlassesClassifier = None  # type: ignore
@@ -23,15 +23,15 @@ except Exception:  # pragma: no cover - optional until vendored
 logger = logging.getLogger(__name__)
 
 
-def load_face_detector(config: Dict, device: str) -> FaceDetector:
+def load_face_detector(config: AppConfig, device: str) -> FaceDetector:
     """
     Loads and initializes the face detection model.
 
-    This function accesses the `config['model_params']['face_detection']`
-    section of the configuration to instantiate the FaceDetector.
+    This function accesses `config.model_params.face_detection` to
+    instantiate the detector with the correct parameters.
     """
     logger.info(f"Loading face detection model on device '{device}'...")
-    face_detection_config = config["model_params"]["face_detection"]
+    face_detection_config = config.model_params.face_detection
     face_detector = FaceDetector(detection_config=face_detection_config, device=device)
     logger.info("Face detection model loaded.")
     return face_detector

@@ -313,6 +313,29 @@ The configuration is split into several logical sections:
 -   `logging`: Configures the logging level for the application.
 -   `report_generation`: Controls parameters for the final report, like the number of qualitative samples.
 
+#### Typed Config Usage (Senior-friendly API)
+Configuration is parsed into a typed dataclass tree (`AppConfig`) for clarity and maintainability. All application code uses attribute access, not dict indexing.
+
+Example:
+
+```python
+from src.utils.config import load_config, AppConfig
+
+config: AppConfig = load_config("config/config.yaml")
+
+# Attribute access throughout the codebase
+input_dir = config.paths.input_dir
+pattern = config.data_processing.file_pattern
+num_workers = config.execution.num_workers
+fd_model_path = config.model_params.face_detection.model_path
+
+# For serializing into metadata or logs:
+from dataclasses import asdict
+config_snapshot = asdict(config)
+```
+
+To increase logging verbosity at runtime, set `logging.level: "DEBUG"` in `config/config.yaml`.
+
 ## Output Dataset Schema
 The pipeline's two-stage design produces two key data outputs, located in `outputs/<run-id>/`, where `<run-id>` is a unique ID for each pipeline execution. The schemas for these files are different, as they serve different purposes.
 

@@ -24,18 +24,19 @@ class FaceDetector:
     This class handles model loading, inference, and result parsing.
     """
 
-    def __init__(self, detection_config: dict, device: str):
+    def __init__(self, detection_config, device: str):
         """
         Initializes the YOLOv8 face detector.
         Args:
-            detection_config (dict): Configuration for face detection. Note that
-                the `min_face_size` parameter is handled by a downstream
+            detection_config: FaceDetectionConfig dataclass with model params.
+                Note: `min_face_size` is consumed downstream by the pipeline's
                 filtering step and is not used by this class.
             device (str): The device to load the model onto ('cuda', 'mps', 'cpu').
         """
-        self.model_path = detection_config["model_path"]
-        self.min_confidence = detection_config["min_confidence"]
-        self.keep_all = detection_config["keep_all"]
+        # detection_config is expected to be a FaceDetectionConfig dataclass
+        self.model_path = detection_config.model_path
+        self.min_confidence = detection_config.min_confidence
+        self.keep_all = detection_config.keep_all
         try:
             self.model = YOLO(self.model_path)
             self.model.to(device)
@@ -44,13 +45,14 @@ class FaceDetector:
             raise
 
         # --- Set inference parameters from the config ---
-        self.conf = detection_config.get("min_confidence", 0.3)
-        self.iou = detection_config.get("iou_threshold", 0.5)
-        self.max_det = detection_config.get("max_detections", 300)
+        # Optional attributes with sensible defaults
+        self.conf = getattr(detection_config, "min_confidence", 0.3)
+        self.iou = getattr(detection_config, "iou_threshold", 0.5)
+        self.max_det = getattr(detection_config, "max_detections", 300)
 
         # The 'imgsz' parameter in ultralytics can take an integer for square
         # resizing or a (h, w) tuple. We'll support both via the config.
-        det_size = detection_config.get("det_size", 640)
+        det_size = getattr(detection_config, "det_size", 640)
         if isinstance(det_size, list):
             self.imgsz = tuple(det_size)
         else:

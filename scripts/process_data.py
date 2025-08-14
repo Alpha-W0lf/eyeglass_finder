@@ -10,6 +10,7 @@ import json
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import pyarrow.parquet as pq
+from dataclasses import asdict
 
 # Ensure src on path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -18,9 +19,10 @@ from src.utils.metrics import MetricsManager
 from src.data_processing.loader import stream_data_generator
 from src.data_processing.utils import get_total_chunks
 from src.processing.worker import initialize_worker, process_chunk_of_data
-from src.utils.config import load_config
-from src.utils.logging import setup_logging
+from src.utils.config import load_config, AppConfig
+from src.utils.logging import setup_logging, get_logger
 from src.modeling.model_loader import load_glasses_classifiers, load_face_detector
+from src.utils.monitoring import ResourceMonitor
 
 
 def get_git_commit_hash() -> str:
@@ -37,22 +39,22 @@ def get_environment() -> dict:
     }
 
 
-def process_images(config: dict, logger, lock, metrics: MetricsManager):
+def process_images(config: AppConfig, logger, lock, metrics: MetricsManager):
     logger.info("Starting image processing pipeline (Phase 1: Artifact Generation)...")
 
-    input_dir = Path(config["paths"]["input_dir"]) if isinstance(config, dict) else Path(config.paths.input_dir)  # type: ignore[attr-defined]
-    file_pattern = config["data_processing"]["file_pattern"] if isinstance(config, dict) else config.data_processing.file_pattern  # type: ignore[attr-defined]
-    num_workers = config["execution"]["num_workers"] if isinstance(config, dict) else config.execution.num_workers  # type: ignore[attr-defined]
+    input_dir = Path(config.paths.input_dir)
+    file_pattern = config.data_processing.file_pattern
+    num_workers = config.execution.num_workers
 
     logger.info(f"Streaming data from {input_dir} using pattern '{file_pattern}'...")
     data_files = sorted(list(input_dir.glob(f"**/{file_pattern}")))
     total_images_processed = sum(pq.ParquetFile(f).metadata.num_rows for f in data_files)
 
-    chunk_size = config["data_processing"]["chunk_size"] if isinstance(config, dict) else config.data_processing.chunk_size  # type: ignore[attr-defined]
+    chunk_size = config.data_processing.chunk_size
     data_generator = stream_data_generator(data_files=data_files, chunk_size=chunk_size)
 
     logger.info(f"Setting up multiprocessing pool with {num_workers} workers.")
-    processing_func = partial(process_chunk_of_data, config=config if isinstance(config, dict) else config.__dict__)
+    processing_func = partial(process_chunk_of_data, config=config)
 
     all_results = []
     worker_times = []
@@ -68,7 +70,7 @@ def process_images(config: dict, logger, lock, metrics: MetricsManager):
         max_workers=num_workers,
         mp_context=mp.get_context("spawn"),
         initializer=initialize_worker,
-        initargs=(config if isinstance(config, dict) else config.__dict__, lock),
+        initargs=(config, lock),
     ) as executor:
         futures = []
         for chunk in data_generator:
@@ -100,7 +102,7 @@ def process_images(config: dict, logger, lock, metrics: MetricsManager):
                 pbar.update(1)
                 pbar.set_postfix_str(f"Last chunk took {worker_time:.2f}s")
 
-    output_dir = config['paths']['output_dir'] if isinstance(config, dict) else config.paths.output_dir  # type: ignore[attr-defined]
+    output_dir = config.paths.output_dir
     output_path = Path(output_dir) / "annotated_faces.parquet"
     logger.info(f"All images processed. Found a total of {aggregated_metrics.get('final_target_count', 0)} target faces after filtering.")
 
@@ -171,24 +173,20 @@ def main():
 
     run_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     run_id = f"run_{run_timestamp}"
-    output_root = Path(config["paths"]["output_dir"]) / run_id if isinstance(config, dict) else Path(config.paths.output_dir) / run_id  # type: ignore[attr-defined]
+    output_root = Path(config.paths.output_dir) / run_id
 
     logs_dir = output_root / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
 
-    if isinstance(config, dict):
-        config["paths"]["output_dir"] = str(output_root)
-        config["run_id"] = run_id
-        config["paths"]["logs_dir"] = str(logs_dir)
-    else:
-        config.paths.output_dir = str(output_root)
-        config.run_id = run_id  # type: ignore[attr-defined]
-        setattr(config.paths, 'logs_dir', str(logs_dir))
+    config.paths.output_dir = str(output_root)
+    config.run_id = run_id
+    setattr(config.paths, 'logs_dir', str(logs_dir))
 
-    logger = setup_logging(log_level="INFO", log_file=logs_dir / "run.log")
+    setup_logging(log_level="INFO", log_file=logs_dir / "run.log")
+    logger = get_logger()
 
     logger.info("Pre-warming model cache in main process...")
-    load_face_detector(config if isinstance(config, dict) else config.__dict__, device="cpu")
+    load_face_detector(config, device="cpu")
     load_glasses_classifiers(device="cpu")
     logger.info("Model cache is ready.")
 
@@ -200,14 +198,19 @@ def main():
         run_command=get_run_command(),
         git_commit_hash=get_git_commit_hash(),
         environment=get_environment(),
-        config_snapshot=config if isinstance(config, dict) else config.__dict__,
+        config_snapshot=asdict(config),
     )
 
+    monitor = ResourceMonitor(interval=1)
     try:
-        process_images(config if isinstance(config, dict) else config.__dict__, logger, lock, metrics)
+        monitor.start()
+        process_images(config, logger, lock, metrics)
     except Exception as e:
         logger.critical(f"An unhandled error occurred in the main process: {e}")
         raise e
+    finally:
+        monitor.stop()
+        monitor.save_to_json(Path(config.paths.output_dir) / "resource_utilization.json")
 
 
 if __name__ == "__main__":

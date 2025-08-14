@@ -12,6 +12,8 @@ class PathsConfig:
     input_dir: str
     output_dir: str
     output_filename: str
+    # Optional at runtime; set by scripts when a run starts
+    logs_dir: str | None = None
 
 
 @dataclass
@@ -67,6 +69,8 @@ class AppConfig:
     execution: ExecutionConfig
     logging: LoggingConfig
     report_generation: ReportGenerationConfig
+    # Optional at runtime; set by scripts
+    run_id: str | None = None
 
 
 def load_config(config_path: str | Path) -> AppConfig:

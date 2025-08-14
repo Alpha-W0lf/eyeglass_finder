@@ -8,7 +8,7 @@ import json
 # Ensure src is on path for standalone execution
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.utils.config import load_config
+from src.utils.config import load_config, AppConfig
 from src.utils.logging import setup_logging
 from src.utils.metrics import MetricsManager
 from src.reporting.report_generator import generate_report
@@ -33,10 +33,9 @@ def find_latest_run_dir(root_output_dir: str) -> Path:
     return latest_run
 
 
-def create_qualitative_samples(df: pd.DataFrame, output_dir: Path, config: dict):
+def create_qualitative_samples(df: pd.DataFrame, output_dir: Path, config: AppConfig):
     logger.info("Generating qualitative samples...")
-    report_gen_config = config.get("report_generation", {})
-    sample_size = report_gen_config.get("qualitative_analysis_sample_size", 20)
+    sample_size = config.report_generation.qualitative_analysis_sample_size
 
     samples_root = output_dir / "qualitative_analysis"
     final_targets_dir = samples_root / "final_targets"
@@ -152,7 +151,7 @@ def main():
     if args.run_dir:
         run_dir = Path(args.run_dir)
     else:
-        run_dir = find_latest_run_dir(config.paths.output_dir)  # type: ignore[attr-defined]
+        run_dir = find_latest_run_dir(config.paths.output_dir)
 
     logs_dir = run_dir / "logs"
     logs_dir.mkdir(exist_ok=True)
@@ -176,7 +175,7 @@ def main():
     df = pd.read_parquet(annotated_faces_path)
 
     generate_final_dataset(df, run_dir)
-    create_qualitative_samples(df, run_dir, config.__dict__ if hasattr(config, '__dict__') else {})
+    create_qualitative_samples(df, run_dir, config)
     create_high_face_count_samples(metadata, run_dir)
 
     logger.info("Generating visualizations...")

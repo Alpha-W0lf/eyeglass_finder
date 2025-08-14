@@ -25,6 +25,7 @@ import os
 from loguru import logger
 
 from src.data_processing.utils import safe_image_open
+from src.utils.config import AppConfig
 
 
 def batch_generator(data_list: list, batch_size: int):
@@ -37,7 +38,7 @@ def detect_and_crop_faces(
     image_bytes_batch: List[bytes],
     image_metadatas: List[Dict],
     face_detector,
-    config: Dict,
+    config: AppConfig,
     lock,
 ) -> Tuple[List[Dict], Dict, int, List[float], List[Dict], List[Dict]]:
     """
@@ -51,10 +52,10 @@ def detect_and_crop_faces(
         f"PIPELINE_TRACKING: Worker {os.getpid()}: PIPELINE START - Processing {len(image_bytes_batch)} images"
     )
 
-    detection_config = config["model_params"]["face_detection"]
-    inference_batch_size = config["execution"]["inference_batch_size"]
-    min_face_size = detection_config["min_face_size"]
-    target_size = tuple(detection_config["target_size"])
+    detection_config = config.model_params.face_detection
+    inference_batch_size = config.execution.inference_batch_size
+    min_face_size = detection_config.min_face_size
+    target_size = tuple(detection_config.target_size)
 
     metrics = {
         "decoding_errors": 0,
@@ -398,7 +399,7 @@ def classify_faces(
     cropped_faces: List[Dict],
     eyeglasses_classifier: Callable,
     sunglasses_classifier: Callable,
-    config: Dict,
+    config: AppConfig,
 ) -> Tuple[List[Dict], Dict]:
     """
     Classifies faces and returns the enriched results along with metrics.
@@ -420,8 +421,8 @@ def classify_faces(
     face_batch_np = np.array([face_info["cropped_face"] for face_info in cropped_faces])
     eyeglasses_preds = eyeglasses_classifier.predict(face_batch_np)
 
-    class_config = config["model_params"]["classification"]
-    present_label = class_config["present_label"]
+    class_config = config.model_params.classification
+    present_label = class_config.present_label
 
     eyeglasses_candidates: List[Dict] = []
     for i, face_info in enumerate(cropped_faces):

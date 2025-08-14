@@ -28,16 +28,17 @@ from PIL import Image
 from src.modeling.model_loader import load_face_detector, load_glasses_classifiers
 from src.processing.pipeline import detect_and_crop_faces, classify_faces
 from src.utils.logging import setup_logging
+from src.utils.config import AppConfig
 from src.utils.device import get_best_available_device
 
 # Globals per worker process
-g_worker_config: Dict = None
+g_worker_config: AppConfig | Dict = None
 g_face_detector = None
 g_glasses_classifiers: Dict[str, object] = None
 g_inference_lock = None
 
 
-def initialize_worker(config: Dict, lock):
+def initialize_worker(config: AppConfig, lock):
     """Initializes models and logging for a single worker process."""
     global g_worker_config, g_face_detector, g_glasses_classifiers, g_inference_lock
 
@@ -45,7 +46,7 @@ def initialize_worker(config: Dict, lock):
     g_inference_lock = lock
 
     # Configure logging for this worker process
-    setup_logging(log_level=config["logging"]["level"])  # file sink optional
+    setup_logging(log_level=config.logging.level)  # file sink optional
 
     device = get_best_available_device()
 
@@ -91,7 +92,8 @@ def process_chunk_of_data(
 
         image_bytes_batch = []
         worker_format_errors = 0
-        for item in chunk["image"]:
+        pre_diag_entries: List[dict] = []
+        for idx, item in enumerate(chunk["image"]):
             if isinstance(item, dict) and "bytes" in item:
                 image_bytes_batch.append(item["bytes"])  # WIT format
             elif isinstance(item, bytes):
@@ -101,6 +103,22 @@ def process_chunk_of_data(
                     f"Skipping an item in 'image' column of unknown type: {type(item)}"
                 )
                 worker_format_errors += 1
+                try:
+                    image_url = chunk["image_url"].iloc[idx]
+                except Exception:
+                    image_url = "N/A"
+                try:
+                    source_file = chunk["source_file"].iloc[idx]
+                except Exception:
+                    source_file = "unknown"
+                pre_diag_entries.append(
+                    {
+                        "image_url": image_url,
+                        "num_faces": 0,
+                        "failure_reason": "invalid_image_format",
+                        "source_file": source_file,
+                    }
+                )
 
         image_metadatas = chunk[["image_url", "source_file"]].to_dict("records")
 
@@ -110,7 +128,7 @@ def process_chunk_of_data(
             )
             del image_bytes_batch, image_metadatas
             gc.collect()
-            return [], chunk_metrics, num_images_in_chunk, time.time() - start_time, [], [], []
+            return [], chunk_metrics, num_images_in_chunk, time.time() - start_time, [], pre_diag_entries, []
 
         # Stage 1: Detect and crop faces
         start_time_det = time.time()
@@ -136,7 +154,7 @@ def process_chunk_of_data(
         if not cropped_faces:
             del image_bytes_batch, image_metadatas
             gc.collect()
-            return [], chunk_metrics, num_images_in_chunk, time.time() - start_time, [], [], []
+            return [], chunk_metrics, num_images_in_chunk, time.time() - start_time, [], faces_per_image_stats + pre_diag_entries, []
 
         detection_time_per_face = detection_time / len(cropped_faces) if cropped_faces else 0
         for face in cropped_faces:
@@ -173,7 +191,7 @@ def process_chunk_of_data(
             num_images_in_chunk,
             processing_time,
             confidence_scores,
-            faces_per_image_stats,
+            faces_per_image_stats + pre_diag_entries,
             high_face_count_images,
         )
 
