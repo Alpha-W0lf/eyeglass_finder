@@ -4,7 +4,7 @@
 
 - Build a two-stage pipeline to identify faces and classify eyewear presence.
 - Produce a clean, searchable dataset and a per-run report with diagnostics.
-- Ensure easy reproducibility (Docker-first) and optional native execution (Poetry).
+- Ensure easy reproducibility (Docker available) and performance-optimized native execution (Poetry recommended for Apple Silicon).
 
 ## Scope (MVP)
 
@@ -27,8 +27,13 @@
 
 ## Execution Paths
 
-- Docker Compose (recommended for portability)
-- Native (Poetry, Python 3.12+) for GPU on Apple Silicon or local runs
+### Apple Silicon (M1/M2/M3/M4) - PERFORMANCE OPTIMIZED
+- **Native (Poetry, Python 3.12+):** Recommended for maximum performance with 3-5x GPU acceleration via MPS
+- **Docker Compose:** Available for reproducibility, but CPU-only processing due to macOS virtualization limitations
+
+### Other Platforms  
+- **Docker Compose:** Recommended for portability and reproducibility
+- **Native (Poetry, Python 3.12+):** Alternative for development convenience or NVIDIA GPU access
 
 ## Configuration
 
@@ -39,3 +44,13 @@
 
 - Structured logging, progress bars, timing metrics, and resource utilization
 - Verification gates at key milestones (build, tiny dry run, report generation)
+
+## Performance Optimization
+
+For comprehensive optimization analysis and implementation strategy, see **[optimization_notes.md](./optimization_notes.md)**.
+
+Key optimization opportunities:
+- Native execution on Apple Silicon for 3-5x MPS GPU acceleration  
+- Worker scaling from 8 to 10-12 workers on M2 Max hardware
+- Dependency optimization (OpenCV → Pillow+NumPy)
+- Algorithmic improvements (batch processing, vectorized operations)

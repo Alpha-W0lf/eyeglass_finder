@@ -85,5 +85,3 @@
 3) Enhance the run report with decision breakdown and uncertainty analysis.
 4) Build a small labeled validation set and add an evaluation script with threshold sweep.
 5) Iterate thresholds using the labeled set, then lock defaults in `config.yaml`.
-
-

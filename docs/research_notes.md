@@ -33,6 +33,14 @@ Open tuning items:
 
 ## Tooling & Environment
 
-- Docker + Docker Compose (primary), Poetry (native)
+### Execution Strategy (Updated)
+- **Apple Silicon:** Native (Poetry) recommended for 3-5x MPS GPU acceleration
+- **Other Platforms:** Docker + Docker Compose (primary), Poetry (alternative)
 - Python 3.12+, PyTorch, ultralytics, pandas, pyarrow, pandera, loguru, tqdm, seaborn/matplotlib
 - Config-driven; avoid hardcoding paths or thresholds
+
+### Performance Optimization Considerations
+- **Dependency lightening:** OpenCV → Pillow+NumPy for reduced overhead
+- **Algorithmic efficiency:** Batch processing, vectorized operations, index pre-computation
+- **Hardware utilization:** Scale to 10-12 workers on M2 Max, leverage unified memory architecture
+- **Memory optimization:** Target <20GB usage while maximizing throughput

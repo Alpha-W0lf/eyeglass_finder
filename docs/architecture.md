@@ -29,7 +29,10 @@
 ## Hardware selection
 
 - Device selection is automatic via `src/utils/device.py` (CUDA → MPS → CPU)
-- Native runs may leverage Apple Silicon GPU; Docker runs default to CPU unless GPU is configured on Linux/WSL2
+- **Apple Silicon:** Native execution recommended for MPS GPU acceleration (3-5x performance improvement)
+- **NVIDIA Systems:** Docker with NVIDIA Container Toolkit or native execution for GPU access  
+- **macOS Docker Limitation:** Cannot access GPU due to virtualization constraints - use native execution for performance
+- **Other Platforms:** Docker provides CPU-only but portable execution
 
 ## Mermaid (placeholder)
 

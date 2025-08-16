@@ -163,5 +163,5 @@ These are specific, non-negotiable rules to be followed during development.
 
 ## Alignment for this rebuild
 - Follow `rough_docs/rebuild_plan.md` for batched, milestone-based commits and exact messages.
-- Prefer Docker-first; use Poetry-managed virtualenv for native runs.
+- Apple Silicon: Prefer Poetry-managed virtualenv for MPS GPU acceleration; Docker available for reproducibility. Other platforms: Docker-first approach with Poetry alternative.
 - Secrets: provide templates and instructions; never commit real credentials.
