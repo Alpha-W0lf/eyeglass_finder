@@ -18,23 +18,23 @@
 **Objective:** Implement GPU-optimized batch processing for face classification
 
 #### Subtasks:
-- [ ] **2.1.1** Create git checkpoint before Phase 2
+- [x] **2.1.1** Create git checkpoint before Phase 2
   ```bash
   git tag pre-phase2-optimization
   git commit -am "Checkpoint: Before Phase 2 advanced optimizations"
   ```
 
-- [ ] **2.1.2** Analyze current classification bottleneck
+- [x] **2.1.2** Analyze current classification bottleneck
   **Target:** `src/processing/pipeline.py` - `classify_faces` function
-  - [ ] Profile current sequential classification performance
-  - [ ] Identify average faces per image in test dataset
-  - [ ] Measure time per face classification
+  - [x] Profile current sequential classification performance
+  - [x] Identify average faces per image in test dataset
+  - [x] Measure time per face classification
   ```
-  Current Classification Analysis:
-  - Average faces per image: _____
-  - Time per face classification: _____ ms
-  - Total classification time: _____ % of pipeline
-  - Batch potential: _____ faces per typical batch
+  Current Classification Analysis (latest run):
+  - Average faces per image: ~0.07 (260 faces / 4000 images)
+  - Time per face classification: ~30.5 ms avg (7.92 s / 260 faces)
+  - Total classification time: ~19.8% of runtime (7.92 s / 40.1 s)
+  - Batch potential: Low–moderate (<=16 faces typical per chunk)
   ```
 
 - [ ] **2.1.3** Implement batch classification for faces
@@ -88,6 +88,29 @@
   - GPU utilization: _____ %
   - Memory usage: _____ GB
   ```
+
+#### Warmup & Ramp-up Strategy (Startup Smoothing)
+**Objective:** Reduce initial disk I/O and memory pressure while workers, models, and MPS warm up.
+
+- [x] **2.1.8** Implement warmup ramp-up (config-gated)
+  - Add config (proposal):
+    ```yaml
+    performance:
+      rampup:
+        enabled: true
+        warmup_chunks: 3            # first K chunks use warmup settings
+        initial_prefetch_chunks: 1  # temporarily reduce prefetch to lower I/O burst
+        initial_chunk_size_override: null  # e.g., 128 to reduce first row-groups (optional)
+        stagger_worker_submissions_ms: 150 # delay between initial task submissions
+    ```
+  - Behavior:
+    - For the first `warmup_chunks`, use `initial_prefetch_chunks` and optional smaller `chunk_size`
+    - Submit futures with `stagger_worker_submissions_ms` delays to avoid synchronized model loads
+    - After warmup, automatically ramp to configured steady-state values
+  - Success criteria:
+    - Lower initial RSS and swap compared to baseline
+    - No throughput degradation after ramp completes
+    - No increase in failed batches or decoding errors
 
 ### Task 2.2: Dependency Replacement (3-4 hours)
 **Objective:** Replace OpenCV with Pillow+NumPy for efficiency and reliability
@@ -272,6 +295,10 @@
     max_workers: _____ # Optimal count from testing (10 or 12)
     worker_memory_limit_mb: _____ # Calculated from testing
   ```
+
+- [x] **2.3.7** Staggered worker initialization (startup-only)
+  - Apply small delays between first N task submissions to desynchronize heavy model loads and MPS kernel warmup across workers
+  - Validate reduced startup memory pressure without affecting steady-state throughput
 
 ### Task 2.4: Phase 2 Validation & Performance Analysis (1 hour)
 **Objective:** Validate Phase 2 optimizations and measure cumulative gains

@@ -25,6 +25,7 @@
   ```
 
 - [ ] **3.1.2** Implement structured JSON logging
+ - [ ] **3.1.2** Implement structured JSON logging
   **Target:** Create `src/utils/production_logger.py`
   ```python
   import json
@@ -119,6 +120,7 @@
   ```
 
 - [ ] **3.1.7** Test production logging system
+ - [ ] **3.1.7** Test production logging system
   ```bash
   # Run with production logging enabled
   poetry run python scripts/process_data.py --config config/config.yaml
@@ -361,7 +363,13 @@
     face_classification_batch_size: _____ # Optimized from Phase 2
     gc_frequency: _____ # Tuned from Phase 3
     prefetch_chunks: _____
-    
+    rampup:
+      enabled: true
+      warmup_chunks: 3
+      initial_prefetch_chunks: 1
+      initial_chunk_size_override: null
+      stagger_worker_submissions_ms: 150
+      
   observability:
     logging:
       level: "INFO"

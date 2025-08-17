@@ -78,6 +78,12 @@ class PerformanceConfig:
     thread_pool_workers: int
     batch_optimization: bool
     inference_batch_size: int
+    # Ramp-up (startup smoothing)
+    rampup_enabled: bool = False
+    rampup_warmup_chunks: int = 0
+    rampup_initial_prefetch_chunks: int | None = None
+    rampup_initial_chunk_size_override: int | None = None
+    rampup_stagger_worker_submissions_ms: int = 0
 
 
 @dataclass

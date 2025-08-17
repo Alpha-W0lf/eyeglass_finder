@@ -67,7 +67,15 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
     total_images_processed = sum(pq.ParquetFile(f).metadata.num_rows for f in data_files)
 
     chunk_size = config.data_processing.chunk_size
-    data_generator = stream_data_generator(data_files=data_files, chunk_size=chunk_size)
+    # Ramp-up: optionally override initial chunk size during warmup
+    ramp_en = getattr(config.performance, 'rampup_enabled', False)
+    warmup_k = int(getattr(config.performance, 'rampup_warmup_chunks', 0) or 0)
+    init_chunk_override = getattr(config.performance, 'rampup_initial_chunk_size_override', None)
+
+    data_generator = stream_data_generator(
+        data_files=data_files,
+        chunk_size=(init_chunk_override if (ramp_en and warmup_k > 0 and init_chunk_override) else chunk_size)
+    )
 
     logger.info(f"Setting up multiprocessing pool with {num_workers} workers.")
     
@@ -90,12 +98,68 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
     
     try:
         futures = {}
-        for chunk in data_generator:
-            fut = executor.submit(process_chunk_of_data, chunk)
-            futures[fut] = time.perf_counter()
+        submitted = 0
+        completed = 0
+        stagger_ms = int(getattr(config.performance, 'rampup_stagger_worker_submissions_ms', 0) or 0)
+        prefetch_steady = int(getattr(config.performance, 'prefetch_chunks', 4) or 1)
+        prefetch_warm = int(getattr(config.performance, 'rampup_initial_prefetch_chunks', prefetch_steady) or prefetch_steady)
+
+        chunks_iter = iter(data_generator)
+
+        def current_window() -> int:
+            if ramp_en and warmup_k > 0 and submitted < warmup_k:
+                return max(1, prefetch_warm)
+            return max(1, prefetch_steady)
+
+        # Prime initial window
+        try:
+            while len(futures) < current_window():
+                chunk = next(chunks_iter)
+                fut = executor.submit(process_chunk_of_data, chunk)
+                futures[fut] = time.perf_counter()
+                submitted += 1
+                if ramp_en and warmup_k > 0 and submitted <= warmup_k and stagger_ms > 0:
+                    time.sleep(stagger_ms / 1000.0)
+        except StopIteration:
+            pass
 
         with tqdm(total=total_images_processed, desc="Processing Chunks", unit="chunk") as pbar:
-            for future in as_completed(futures):
+            while futures:
+                # Wait for any future to complete
+                for future in as_completed(list(futures.keys()), timeout=None):
+                    start_ts = futures.pop(future, None)
+                    try:
+                        num_processed, num_faces, faces, diags, high_face_images, detect_time_s, classify_time_s = future.result()
+                        total_worker_input_images += num_processed
+                        total_faces_detected += num_faces
+                        valid_faces.extend(faces)
+                        diagnostics.extend(diags)
+                        if high_face_images:
+                            high_face_images_all.extend(high_face_images)
+                        metrics.total_detection_time_seconds += float(detect_time_s)
+                        metrics.total_classification_time_seconds += float(classify_time_s)
+                        if start_ts is not None:
+                            duration = time.perf_counter() - start_ts
+                            metrics.worker_processing_times.append(duration)
+                    except Exception as e:
+                        logger.error(f"A worker process failed: {e}", exc_info=True)
+                        total_failed_chunks += 1
+                    finally:
+                        pbar.update(1)
+                        completed += 1
+
+                    # After consuming one, try to keep window filled
+                    try:
+                        while len(futures) < current_window():
+                            chunk = next(chunks_iter)
+                            fut = executor.submit(process_chunk_of_data, chunk)
+                            futures[fut] = time.perf_counter()
+                            submitted += 1
+                            if ramp_en and warmup_k > 0 and submitted <= warmup_k and stagger_ms > 0:
+                                time.sleep(stagger_ms / 1000.0)
+                    except StopIteration:
+                        pass
+                    break
                 try:
                     num_processed, num_faces, faces, diags, high_face_images, detect_time_s, classify_time_s = future.result()
                     

@@ -54,17 +54,46 @@ def initialize_pipeline_worker(config_dict: Dict):
     
     g_device = get_best_available_device(g_config)
     logger.info(f"Worker {os.getpid()} selected device: {g_device}")
-    
-    g_face_detector = FaceDetector(
-        detection_config=g_config.model_params.face_detection,
-        device=g_device
-    )
-    log_memory_usage(f"Worker {os.getpid()}: After loading FaceDetector model.")
-    
-    g_glasses_classifier = GlassesClassifier(device=g_device)
-    # The model inside the wrapper must be set to evaluation mode
-    g_glasses_classifier.model.eval()
-    log_memory_usage(f"Worker {os.getpid()}: After loading GlassesClassifier model.")
+
+    # Load models on the selected device with a minimal functional check.
+    def _load_models_on(device_any):
+        global g_face_detector, g_glasses_classifier
+        g_face_detector = FaceDetector(
+            detection_config=g_config.model_params.face_detection,
+            device=device_any,
+        )
+        log_memory_usage(f"Worker {os.getpid()}: After loading FaceDetector model.")
+
+        g_glasses_classifier = GlassesClassifier(device=device_any)
+        g_glasses_classifier.model.eval()
+        log_memory_usage(f"Worker {os.getpid()}: After loading GlassesClassifier model.")
+
+    def _quick_device_check():
+        try:
+            # Create a tiny blank image and run a quick detection to surface device issues early
+            test_img = Image.new("RGB", (32, 32), color=(0, 0, 0))
+            _ = g_face_detector.detect(image_batch=[test_img])
+            return True
+        except Exception:
+            logger.warning(
+                f"Worker {os.getpid()} device check failed on {g_device}. Falling back to CPU.",
+                exc_info=True,
+            )
+            return False
+
+    # Attempt load and validate on selected device
+    _load_models_on(g_device)
+    if not _quick_device_check():
+        g_device = "cpu"
+        _load_models_on(g_device)
+        logger.info(f"Worker {os.getpid()} switched to fallback device: {g_device}")
+
+    # Log active eyewear probability threshold for clarity
+    try:
+        thr = float(getattr(g_config.model_params.classification, "eyewear_prob_threshold", 0.5))
+        logger.info(f"Worker {os.getpid()} classifier prob threshold: {thr}")
+    except Exception:
+        pass
 
 
 def process_images(image_df: pd.DataFrame) -> Tuple[List[Dict], List[Dict], List[Dict], float, float]:
