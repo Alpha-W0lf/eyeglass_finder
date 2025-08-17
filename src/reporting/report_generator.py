@@ -19,6 +19,10 @@ def generate_report(metrics: MetricsManager, output_path: Path):
     viz_dir_name = "visualizations"
     qual_dir_name = "qualitative_analysis"
 
+    # Prefer a globally persisted max if the caller hydrated it into metrics via run_metadata.json
+    global_max = getattr(metrics, "global_max_faces_in_single_image", None)
+    max_faces_effective = global_max if isinstance(global_max, int) and global_max > 0 else metrics.max_faces_in_single_image
+
     report_content = f"""
 # Pipeline Run Report: {metrics.run_id}
 
@@ -57,7 +61,7 @@ def generate_report(metrics: MetricsManager, output_path: Path):
 | Total Images Processed              | {metrics.total_images_processed} |
 | Images with Decoding Errors         | {metrics.images_with_decoding_errors} |
 | Images with No Faces                | {metrics.images_with_no_faces} |
-| Images with Faces                   | {metrics.total_images_processed - metrics.images_with_no_faces} |
+| Images with Faces                   | {max(0, metrics.total_images_processed - metrics.images_with_no_faces)} |
 | Total Faces Detected                | {metrics.total_faces_detected} |
 | Faces > Size Threshold              | {metrics.faces_above_size_threshold} |
 | Faces Classified                    | {metrics.faces_classified} |
@@ -68,9 +72,9 @@ def generate_report(metrics: MetricsManager, output_path: Path):
 ### 3.1. Face Detection Diagnostics
 
 **Key Findings:**
-- **Maximum faces in single image:** {metrics.max_faces_in_single_image}
+- **Maximum faces in single image:** {max_faces_effective}
 - **Images with multiple faces:** {metrics.images_with_multiple_faces}
-- **Average faces per image (images with faces):** {(metrics.total_faces_detected / (metrics.total_images_processed - metrics.images_with_no_faces)):.2f}
+- **Average faces per image (images with faces):** {((metrics.total_faces_detected / max(1, (metrics.total_images_processed - metrics.images_with_no_faces)))):.2f}
 
 **Face Count Distribution:**
 {_generate_face_count_summary(metrics.faces_per_image_distribution, metrics.total_images_processed)}

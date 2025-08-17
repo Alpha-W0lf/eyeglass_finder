@@ -39,6 +39,7 @@ from src.utils.config import load_config, AppConfig
 from src.utils.logging_setup import setup_logging, get_logger
 from src.modeling.model_loader import load_glasses_classifiers, load_face_detector
 from src.utils.monitoring import ResourceMonitor
+from src.utils.memory_manager import MemoryPoolManager
 
 
 def get_git_commit_hash() -> str:
@@ -78,6 +79,9 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
     )
 
     logger.info(f"Setting up multiprocessing pool with {num_workers} workers.")
+    # Memory manager to proactively throttle prefetch under pressure
+    mem_thresh = int(getattr(config.observability.performance_alerts, 'memory_threshold', 85) or 85)
+    memory_manager = MemoryPoolManager(pressure_percent_threshold=mem_thresh, min_available_gb=4.0)
     
     # The initializer function is called once for each worker process when it starts.
     # We use a partial function to pass the config dictionary to the initializer.
@@ -108,8 +112,10 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
 
         def current_window() -> int:
             if ramp_en and warmup_k > 0 and submitted < warmup_k:
-                return max(1, prefetch_warm)
-            return max(1, prefetch_steady)
+                desired = max(1, prefetch_warm)
+            else:
+                desired = max(1, prefetch_steady)
+            return memory_manager.recommend_prefetch_window(desired)
 
         # Prime initial window
         try:
@@ -123,7 +129,7 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
         except StopIteration:
             pass
 
-        with tqdm(total=total_images_processed, desc="Processing Chunks", unit="chunk") as pbar:
+        with tqdm(total=total_images_processed, desc="Processing Chunks", unit="img") as pbar:
             while futures:
                 # Wait for any future to complete
                 for future in as_completed(list(futures.keys()), timeout=None):
@@ -144,8 +150,10 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
                     except Exception as e:
                         logger.error(f"A worker process failed: {e}", exc_info=True)
                         total_failed_chunks += 1
+                        num_processed = 0
                     finally:
-                        pbar.update(1)
+                        # Progress by number of images processed in this future
+                        pbar.update(max(0, int(num_processed)))
                         completed += 1
 
                     # After consuming one, try to keep window filled
@@ -160,29 +168,12 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
                     except StopIteration:
                         pass
                     break
-                try:
-                    num_processed, num_faces, faces, diags, high_face_images, detect_time_s, classify_time_s = future.result()
-                    
-                    total_worker_input_images += num_processed
-                    total_faces_detected += num_faces
-                    valid_faces.extend(faces)
-                    diagnostics.extend(diags)
-                    if high_face_images:
-                        high_face_images_all.extend(high_face_images)
-                    # accumulate timing
-                    metrics.total_detection_time_seconds += float(detect_time_s)
-                    metrics.total_classification_time_seconds += float(classify_time_s)
-                    # Record worker processing time
-                    start_ts = futures.get(future)
-                    if start_ts is not None:
-                        duration = time.perf_counter() - start_ts
-                        metrics.worker_processing_times.append(duration)
-                    
-                except Exception as e:
-                    logger.error(f"A worker process failed: {e}", exc_info=True)
-                    total_failed_chunks += 1
-                finally:
-                    pbar.update(1)
+
+                    # Under memory pressure, opportunistically yield
+                    if memory_manager.is_memory_pressure():
+                        import gc
+                        gc.collect()
+                        time.sleep(0.05)
                 
     finally:
         logger.info("Main process is shutting down. Waiting for workers to terminate...")
@@ -216,54 +207,88 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
     # Build aggregated metrics expected by artifact generator
     try:
         # Diagnostics-based counts
-        reason_counts = {}
+        reason_counts: dict[str, int] = {}
+        per_image_face_counts: dict[int, int] = {}
         for d in diagnostics:
             r = d.get("reason")
             if r:
                 reason_counts[r] = reason_counts.get(r, 0) + 1
+            if r == "faces_detected":
+                img_id = int(d.get("image_id")) if d.get("image_id") is not None else None
+                cnt = int(d.get("count", 0))
+                if img_id is not None:
+                    per_image_face_counts[img_id] = cnt
 
         images_with_decoding_errors = reason_counts.get("image_decoding_error", 0)
         images_with_no_faces = reason_counts.get("no_faces_detected", 0)
 
-        # Faces per image distribution
+        # Faces per image distribution based on raw detections (pre size-threshold)
         faces_per_image = {}
-        if valid_faces:
-            df_faces = pd.DataFrame(valid_faces)
-            if "image_id" in df_faces.columns:
-                counts = df_faces.groupby("image_id").size().astype(int)
-                # include zeros for images with no faces
-                all_ids = set(range(total_images_processed))
-                present_ids = set(counts.index.tolist())
-                zero_ids = all_ids - present_ids
-                zero_series = pd.Series(0, index=sorted(list(zero_ids)))
-                combined = pd.concat([counts, zero_series])
-                # build histogram: value (num_faces) -> frequency
-                hist = combined.value_counts().sort_index()
-                faces_per_image = {str(int(k)): int(v) for k, v in hist.items()}
+        if per_image_face_counts:
+            # Build a Series for all images we have counts for (no_faces are implied by diagnostics)
+            # Fill zeros explicitly for images with no faces
+            all_ids = set(range(total_images_processed))
+            with_counts = set(per_image_face_counts.keys())
+            zero_ids = sorted(list(all_ids - with_counts))
+            counts_series = pd.Series(per_image_face_counts)
+            if images_with_no_faces > 0:
+                # Restrict zeros to the expected number of no-face images if any drift exists
+                zero_ids = zero_ids[:images_with_no_faces]
+            zeros_series = pd.Series(0, index=zero_ids)
+            combined = pd.concat([counts_series, zeros_series])
+            hist = combined.value_counts().sort_index()
+            faces_per_image = {str(int(num_faces)): int(num_images) for num_faces, num_images in hist.items()}
 
         faces_above_size_threshold = len(valid_faces)
         faces_classified = len(valid_faces)
         faces_with_eyeglasses = sum(1 for f in valid_faces if f.get("is_target"))
         faces_rejected_as_sunglasses = sum(1 for f in valid_faces if f.get("sunglasses_prediction"))
+        total_raw_faces_detected = int(sum(per_image_face_counts.values()))
+
+        # Cross-source max faces: from histogram and from high_face_images list (if present)
+        max_faces_hist = max([int(k) for k in faces_per_image.keys()], default=0)
+        try:
+            max_faces_high = max((int(img.get("num_faces", 0)) for img in high_face_images_all), default=0)
+        except Exception:
+            max_faces_high = 0
+        max_faces_final = max(max_faces_hist, max_faces_high)
+
+        # Build top-N images by face count for auditability
+        try:
+            sorted_high = sorted(high_face_images_all, key=lambda x: int(x.get("num_faces", 0)), reverse=True)
+            top_k_records = [
+                {
+                    "rank": i + 1,
+                    "image_id": int(rec.get("image_id")) if rec.get("image_id") is not None else None,
+                    "num_faces": int(rec.get("num_faces", 0)),
+                    "image_url": rec.get("image_url"),
+                }
+                for i, rec in enumerate(sorted_high[:50])
+            ]
+        except Exception:
+            top_k_records = []
 
         face_count_diagnostics = {
-            "faces_per_image_distribution": faces_per_image,
-            "max_faces_in_single_image": max([int(v) for v in faces_per_image.values()], default=0),
-            "images_with_multiple_faces": sum(1 for v in faces_per_image.values() if int(v) > 1),
-            "high_face_count_images": [],
+            "faces_per_image_distribution": faces_per_image,  # key: num_faces, value: number_of_images
+            "max_faces_in_single_image": max_faces_final,
+            "images_with_multiple_faces": sum(int(v) for k, v in faces_per_image.items() if int(k) > 1),
+            "high_face_count_images": top_k_records,
         }
 
         aggregated_metrics = {
             "total_images_processed": int(total_images_processed),
             "images_with_decoding_errors": int(images_with_decoding_errors),
             "images_with_no_faces": int(images_with_no_faces),
-            "total_faces_detected": int(total_faces_detected),
+            # Use raw detection counts for total faces detected (pre size-threshold)
+            "total_faces_detected": int(total_raw_faces_detected),
             "faces_above_size_threshold": int(faces_above_size_threshold),
             "faces_classified": int(faces_classified),
             "faces_with_eyeglasses": int(faces_with_eyeglasses),
             "faces_rejected_as_sunglasses": int(faces_rejected_as_sunglasses),
             "final_target_count": int(metrics.final_target_count),
             "face_count_diagnostics": face_count_diagnostics,
+            # Persist global maximum directly for robust reporting regardless of diagnostic sampling
+            "global_max_faces_in_single_image": int(max_faces_final),
         }
     except Exception as e:
         logger.error(f"Failed to build aggregated metrics: {e}")
@@ -420,6 +445,8 @@ def main():
                 face_diag = agg.get("face_count_diagnostics", {})
                 metrics.faces_per_image_distribution = face_diag.get("faces_per_image_distribution", {})
                 metrics.max_faces_in_single_image = face_diag.get("max_faces_in_single_image", 0)
+                # Also hydrate global max if present for robust reporting
+                metrics.global_max_faces_in_single_image = agg.get("global_max_faces_in_single_image", metrics.max_faces_in_single_image)
                 metrics.images_with_multiple_faces = face_diag.get("images_with_multiple_faces", 0)
                 # Also hydrate worker performance
                 worker_perf = md.get("worker_performance", {})

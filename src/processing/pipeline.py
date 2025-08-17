@@ -27,9 +27,11 @@ from PIL import Image
 from loguru import logger
 import pandas as pd
 from torchvision import transforms
+import psutil
 
 from src.modeling.face_detector import FaceDetector
 from glasses_detector import GlassesClassifier
+from src.processing.batch_classifier import BatchFaceClassifier
 from src.utils.config import AppConfig, config_from_dict
 from src.utils.device import get_best_available_device
 from src.utils.logging_setup import get_logger
@@ -39,6 +41,7 @@ from src.utils.metrics import log_memory_usage
 g_config: AppConfig = None
 g_face_detector: FaceDetector = None
 g_glasses_classifier: GlassesClassifier = None
+g_batch_classifier: BatchFaceClassifier | None = None
 g_device: torch.device = None
 
 
@@ -57,7 +60,7 @@ def initialize_pipeline_worker(config_dict: Dict):
 
     # Load models on the selected device with a minimal functional check.
     def _load_models_on(device_any):
-        global g_face_detector, g_glasses_classifier
+        global g_face_detector, g_glasses_classifier, g_batch_classifier
         g_face_detector = FaceDetector(
             detection_config=g_config.model_params.face_detection,
             device=device_any,
@@ -67,6 +70,8 @@ def initialize_pipeline_worker(config_dict: Dict):
         g_glasses_classifier = GlassesClassifier(device=device_any)
         g_glasses_classifier.model.eval()
         log_memory_usage(f"Worker {os.getpid()}: After loading GlassesClassifier model.")
+        # Initialize batch wrapper
+        g_batch_classifier = BatchFaceClassifier(g_glasses_classifier, device_any)
 
     def _quick_device_check():
         try:
@@ -111,7 +116,7 @@ def process_images(image_df: pd.DataFrame) -> Tuple[List[Dict], List[Dict], List
         - A list of dictionaries for diagnostic information.
     """
     logger.info(f"Worker {os.getpid()}: process_images received {len(image_df)} images.")
-    global g_config, g_face_detector, g_glasses_classifier, g_device
+    global g_config, g_face_detector, g_glasses_classifier, g_batch_classifier, g_device
     
     valid_faces = []
     diagnostics = []
@@ -187,10 +192,16 @@ def process_images(image_df: pd.DataFrame) -> Tuple[List[Dict], List[Dict], List
                 num_faces = len(boxes)
                 total_faces_detected += num_faces
                 images_with_faces += 1
+                # Record raw detection count per image for accurate distribution downstream
+                try:
+                    diagnostics.append({"image_id": original_image_id, "reason": "faces_detected", "count": int(num_faces)})
+                except Exception:
+                    pass
                 # Capture high face count images for diagnostics (threshold >= 6)
                 try:
                     if num_faces >= 6:
                         high_face_images.append({
+                            "image_id": int(original_image_id),
                             "image_bytes": row.image['bytes'],
                             "num_faces": int(num_faces),
                             "image_url": row.get("image_url", None),
@@ -200,14 +211,14 @@ def process_images(image_df: pd.DataFrame) -> Tuple[List[Dict], List[Dict], List
                     pass
   
                 _class_start = time.perf_counter()
+                # Accumulate faces for batch classification
+                face_records = []  # tuples: (face_idx, bbox, conf, crop_for_artifacts, clf_input_image, face_size)
                 for face_idx, (xmin, ymin, xmax, ymax) in enumerate(boxes):
                     conf = scores[face_idx]
                     face_width, face_height = xmax - xmin, ymax - ymin
-  
                     if face_width < detection_config.min_face_size or face_height < detection_config.min_face_size:
                         diagnostics.append({"image_id": original_image_id, "reason": "face_too_small"})
                         continue
-
                     try:
                         # Build centered square crop with margin for artifacts (config-gated)
                         if sampling_cfg and getattr(sampling_cfg, "square_crop", False):
@@ -215,17 +226,11 @@ def process_images(image_df: pd.DataFrame) -> Tuple[List[Dict], List[Dict], List
                             cy = (ymin + ymax) / 2.0
                             side = max(face_width, face_height) * (1.0 + float(getattr(sampling_cfg, "crop_margin", 0.0)))
                             half = side / 2.0
-                            x0 = int(round(cx - half))
-                            y0 = int(round(cy - half))
-                            x1 = int(round(cx + half))
-                            y1 = int(round(cy + half))
+                            x0 = int(round(cx - half)); y0 = int(round(cy - half)); x1 = int(round(cx + half)); y1 = int(round(cy + half))
                             W, H = original_image.size
                             if getattr(sampling_cfg, "pad_mode", None):
                                 from PIL import ImageOps
-                                pad_left = max(0, -x0)
-                                pad_top = max(0, -y0)
-                                pad_right = max(0, x1 - W)
-                                pad_bottom = max(0, y1 - H)
+                                pad_left = max(0, -x0); pad_top = max(0, -y0); pad_right = max(0, x1 - W); pad_bottom = max(0, y1 - H)
                                 if pad_left or pad_top or pad_right or pad_bottom:
                                     fill_mode = sampling_cfg.pad_mode
                                     if fill_mode == "edge":
@@ -244,54 +249,74 @@ def process_images(image_df: pd.DataFrame) -> Tuple[List[Dict], List[Dict], List
 
                         # Choose classifier input image depending on flag
                         clf_input_image = crop_for_artifacts if (sampling_cfg and getattr(sampling_cfg, "apply_to_classifier", False)) else original_image.crop((xmin, ymin, xmax, ymax))
+                        face_records.append((face_idx, (xmin, ymin, xmax, ymax), conf, crop_for_artifacts, clf_input_image, (face_width, face_height)))
+                    except Exception:
+                        diagnostics.append({"image_id": original_image_id, "reason": "face_processing_error"})
 
-                        # Get probability from classifier
-                        eyewear_proba = g_glasses_classifier.predict(clf_input_image, format="proba")
-
-                        # Resize artifact crop to target size for consistency
+                # Run batch classification on accumulated faces for this image
+                if face_records:
+                    try:
+                        clf_imgs = [rec[4] for rec in face_records]
+                        # Dynamic batch sizing heuristic based on available system memory
+                        base_bs = int(getattr(g_config.performance, 'face_classification_batch_size', 16) or 16)
                         try:
-                            target_w, target_h = detection_config.target_size[0], detection_config.target_size[1]
-                            resized_for_artifact = crop_for_artifacts.resize((int(target_w), int(target_h)))
+                            avail_gb = psutil.virtual_memory().available / (1024**3)
                         except Exception:
-                            resized_for_artifact = crop_for_artifacts
+                            avail_gb = 8.0
+                        if avail_gb < 4.0:
+                            batch_bs = max(4, base_bs // 4)
+                        elif avail_gb < 8.0:
+                            batch_bs = max(8, base_bs // 2)
+                        else:
+                            batch_bs = base_bs
+                        logger.debug(f"Worker {os.getpid()} classification batch size: {batch_bs} (avail_gb={avail_gb:.2f})")
+                        log_memory_usage(f"Worker {os.getpid()}: Before batch classify ({len(clf_imgs)} faces, bs={batch_bs})")
+                        eyewear_probas = g_batch_classifier.classify_batch(clf_imgs, batch_size=batch_bs)
+                        log_memory_usage(f"Worker {os.getpid()}: After batch classify")
+                    except Exception:
+                        # Fallback to per-face classification if batch path fails
+                        eyewear_probas = []
+                        for rec in face_records:
+                            eyewear_probas.append(float(g_glasses_classifier.predict(rec[4], format="proba")))
 
-                        # Serialize to JPEG bytes
-                        jpeg_buf = io.BytesIO()
-                        resized_for_artifact.save(jpeg_buf, format="JPEG")
-                        cropped_jpeg_bytes = jpeg_buf.getvalue()
-                        jpeg_buf.close()
-
-                        # Derive target flag from probability using config threshold
+                    # Build outputs
+                    for rec, eyewear_proba in zip(face_records, eyewear_probas):
+                        face_idx, (xmin, ymin, xmax, ymax), conf, crop_for_artifacts, _clf_img, (face_width, face_height) = rec
                         try:
-                            prob_threshold = float(getattr(g_config.model_params.classification, "eyewear_prob_threshold", 0.5))
+                            # Resize artifact crop to target size for consistency
+                            try:
+                                target_w, target_h = detection_config.target_size[0], detection_config.target_size[1]
+                                resized_for_artifact = crop_for_artifacts.resize((int(target_w), int(target_h)))
+                            except Exception:
+                                resized_for_artifact = crop_for_artifacts
+                            # Serialize to JPEG bytes
+                            jpeg_buf = io.BytesIO()
+                            resized_for_artifact.save(jpeg_buf, format="JPEG")
+                            cropped_jpeg_bytes = jpeg_buf.getvalue()
+                            jpeg_buf.close()
+                            # Thresholding
+                            try:
+                                prob_threshold = float(getattr(g_config.model_params.classification, "eyewear_prob_threshold", 0.5))
+                            except Exception:
+                                prob_threshold = 0.5
+                            is_target = bool(float(eyewear_proba) >= prob_threshold)
+                            valid_faces.append({
+                                "image_id": original_image_id,
+                                "image_url": row.get("image_url", None),
+                                "source_file": row.get("source_file", None),
+                                "original_image_mode": getattr(original_image, "mode", None),
+                                "face_index": face_idx,
+                                "face_bbox": [int(c) for c in [xmin, ymin, xmax, ymax]],
+                                "face_size": [int(face_width), int(face_height)],
+                                "face_score": float(conf.item()) if hasattr(conf, "item") else float(conf),
+                                "has_eyewear_confidence": float(eyewear_proba),
+                                "glasses_confidence": float(eyewear_proba),
+                                "sunglasses_prediction": False,
+                                "is_target": is_target,
+                                "cropped_face_jpeg": cropped_jpeg_bytes,
+                            })
                         except Exception:
-                            prob_threshold = 0.5
-                        is_target = bool(float(eyewear_proba) >= prob_threshold)
-
-                        valid_faces.append({
-                            "image_id": original_image_id,
-                            "image_url": row.get("image_url", None),
-                            "source_file": row.get("source_file", None),
-                            "original_image_mode": getattr(original_image, "mode", None),
-                            "face_index": face_idx,
-                            "face_bbox": [int(c) for c in [xmin, ymin, xmax, ymax]],
-                            "face_size": [int(face_width), int(face_height)],
-                            "face_score": float(conf.item()) if hasattr(conf, "item") else float(conf),
-                            "has_eyewear_confidence": float(eyewear_proba),
-                            "glasses_confidence": float(eyewear_proba),
-                            "sunglasses_prediction": False,
-                            "is_target": is_target,
-                            "cropped_face_jpeg": cropped_jpeg_bytes,
-                        })
-                    except Exception as e:
-                        logger.error(
-                            f"WORKER CRASH POINT: An unexpected error occurred while processing face {face_idx} for image {original_image_id}.",
-                            exc_info=True
-                        )
-                        diagnostics.append({
-                            "image_id": original_image_id,
-                            "reason": "face_processing_error"
-                        })
+                            diagnostics.append({"image_id": original_image_id, "reason": "face_processing_error"})
                 total_classification_time_s += (time.perf_counter() - _class_start)
           
         except Exception as e:

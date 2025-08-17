@@ -49,6 +49,7 @@ def stream_data_generator(
 
     logger.info(f"Generator will process {len(data_files)} data files.")
 
+    global_row_index = 0
     for file in data_files:
         logger.info(f"Streaming data from {file.name}...")
         try:
@@ -105,6 +106,11 @@ def stream_data_generator(
                                 continue
                     
                     if chunk_df is not None:
+                        # Assign a stable global image_id index across all files and chunks
+                        num_rows = len(chunk_df)
+                        chunk_df.index = range(global_row_index, global_row_index + num_rows)
+                        chunk_df["image_id"] = chunk_df.index
+                        global_row_index += num_rows
                         chunk_df["source_file"] = file.name
 
                         try:

@@ -16,7 +16,7 @@ data_processing:
   file_pattern: "sample_train-*.parquet"
   # The number of rows to process in a single chunk. This affects memory usage
   # and the granularity of parallel processing.
-  chunk_size: 256 # Default: 256, Ran successfully at 1024
+  chunk_size: 333 # Default: 256, Ran successfully at 1024
 
 # Model and Filtering Parameters
 model_params:
@@ -67,7 +67,7 @@ logging:
 # Hardware Specific Settings
 # -----------------------------------------------------------------------------
 hardware:
-  max_workers: 8              # Phase 1 target (safer intermediate step)
+  max_workers: 12              # Phase 2 scaling test to 12 workers
   worker_memory_limit_mb: 1500 # Per-worker memory cap for 10 workers
   use_mps_acceleration: true  # Will enable in Task 1.4
   device_override: null        # Manual device override if needed
@@ -81,12 +81,14 @@ performance:
   thread_pool_workers: 4        # Threads for I/O bound tasks within workers
   batch_optimization: true      # Enable/disable batch-level optimizations
   inference_batch_size: 64      # Number of images to process in one go by the model
+  face_classification_batch_size: 16   # GPU-oriented classification micro-batch size
+  max_batch_accumulation_time: 100     # ms before forcing classification batch
   # Ramp-up (startup smoothing)
   rampup_enabled: true
-  rampup_warmup_chunks: 8
+  rampup_warmup_chunks: 4
   rampup_initial_prefetch_chunks: 1
-  rampup_initial_chunk_size_override: 128
-  rampup_stagger_worker_submissions_ms: 150
+  rampup_initial_chunk_size_override: 192
+  rampup_stagger_worker_submissions_ms: 100
 
 # -----------------------------------------------------------------------------
 # Observability Enhancements

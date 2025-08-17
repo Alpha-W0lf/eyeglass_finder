@@ -168,18 +168,24 @@ def create_high_face_count_samples(metadata: dict, output_dir: Path):
     high_face_dir = samples_root / "high_face_count_images"
     high_face_dir.mkdir(parents=True, exist_ok=True)
 
-    sorted_images = sorted(high_face_count_images, key=lambda x: x['num_faces'], reverse=True)
+    sorted_images = sorted(high_face_count_images, key=lambda x: x.get('num_faces', 0), reverse=True)
     max_samples = min(20, len(sorted_images))
 
     for i, image_data in enumerate(sorted_images[:max_samples]):
         try:
-            image_bytes = image_data['image_bytes']
-            num_faces = image_data['num_faces']
+            # Metadata may not include bytes if saved from metadata-only top_k; fall back to annotated_faces parquet lookup
+            num_faces = int(image_data.get('num_faces', 0))
             image_url = image_data.get('image_url', 'unknown')
             filename = f"high_faces_{i+1:02d}_count_{num_faces}_faces.jpg"
-            with open(high_face_dir / filename, "wb") as f:
-                f.write(image_bytes)
-            logger.debug(f"Saved high face count image: {filename} ({num_faces} faces)")
+            image_bytes = image_data.get('image_bytes')
+            if image_bytes is None:
+                # Try to locate cropped face bytes from annotated_faces parquet as fallback is not feasible for whole image.
+                # We gracefully skip if not available.
+                logger.warning(f"No raw image bytes for high-face image (rank {i+1}). Skipping save.")
+            else:
+                with open(high_face_dir / filename, "wb") as f:
+                    f.write(image_bytes)
+                logger.debug(f"Saved high face count image: {filename} ({num_faces} faces)")
         except Exception as e:
             logger.warning(f"Failed to save high face count image {i+1}: {e}")
 

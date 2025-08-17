@@ -12,6 +12,8 @@
 - [ ] All major optimizations functional (MPS, batch processing, memory tuning)
 - [ ] Git checkpoint `phase2-complete` exists
 
+Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-computation, explicit pre-allocation) should be considered only if profiling in Phase 2 identifies a clear bottleneck.
+
 ## Phase 3 Task Sequence
 
 ### Task 3.1: Production Logging & Observability (3-4 hours)

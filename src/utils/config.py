@@ -78,6 +78,9 @@ class PerformanceConfig:
     thread_pool_workers: int
     batch_optimization: bool
     inference_batch_size: int
+    # Face classification batching
+    face_classification_batch_size: int = 16
+    max_batch_accumulation_time: int = 100  # milliseconds
     # Ramp-up (startup smoothing)
     rampup_enabled: bool = False
     rampup_warmup_chunks: int = 0

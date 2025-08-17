@@ -89,6 +89,8 @@ class MetricsManager:
     high_face_count_images: List[dict] = field(default_factory=list)  # Images with many faces
     max_faces_in_single_image: int = 0
     images_with_multiple_faces: int = 0  # Count of images with >1 face
+    # Persisted global max faces (optional, hydrated from run_metadata.json)
+    global_max_faces_in_single_image: int = 0
 
     def finalize(self):
         """
