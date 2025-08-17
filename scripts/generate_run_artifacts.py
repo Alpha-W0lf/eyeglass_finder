@@ -40,26 +40,108 @@ def create_qualitative_samples(df: pd.DataFrame, output_dir: Path, config: AppCo
     samples_root = output_dir / "qualitative_analysis"
     final_targets_dir = samples_root / "final_targets"
     rejected_sunglasses_dir = samples_root / "rejected_as_sunglasses"
+    false_negative_candidates_dir = samples_root / "false_negative_candidates"
     final_targets_dir.mkdir(parents=True, exist_ok=True)
     rejected_sunglasses_dir.mkdir(parents=True, exist_ok=True)
+    false_negative_candidates_dir.mkdir(parents=True, exist_ok=True)
+
+    def _write_metadata_and_index(sample_df: pd.DataFrame, folder: Path, kind_label: str):
+        if sample_df.empty:
+            return
+        # Build metadata
+        records = []
+        for idx, row in sample_df.iterrows():
+            records.append({
+                "filename": None,  # filled below
+                "image_id": idx,
+                "face_index": row.get("face_index", None),
+                "eyeglasses_proba": float(row.get("has_eyewear_confidence", row.get("glasses_confidence", 0.0)) or 0.0),
+                "detector_conf": float(row.get("face_score", 0.0) or 0.0),
+                "is_target": bool(row.get("is_target", False)),
+                "sunglasses_prediction": bool(row.get("sunglasses_prediction", False)),
+                "face_size": row.get("face_size", None),
+                "face_bbox": row.get("face_bbox", None),
+                "image_url": row.get("image_url", None),
+                "source_file": row.get("source_file", None),
+            })
+        # Assign filenames consistently (must match actual saved files)
+        for rec in records:
+            rec["filename"] = f"{kind_label}_{rec['image_id']}_clf{rec['eyeglasses_proba']:.2f}_det{rec['detector_conf']:.2f}.jpg"
+        # Write CSV metadata
+        meta_df = pd.DataFrame.from_records(records)
+        meta_df.to_csv(folder / "metadata.csv", index=False)
+        # Write a simple HTML index for quick manual review
+        html_lines = [
+            "<html><head><meta charset='utf-8'><title>Samples</title>",
+            "<style>body{font-family:sans-serif} .card{display:inline-block;margin:8px;border:1px solid #ddd;padding:6px;width:260px;vertical-align:top;word-wrap:break-word} .img{width:256px;height:auto} .meta{font-size:14px;color:#333} a{word-break:break-all}</style>",
+            "</head><body>",
+            f"<h2>{kind_label.replace('_',' ').title()} Samples</h2>",
+            "<p>Confidence shown as eyeglasses_proba (classifier) and detector_conf (face detector).</p>",
+        ]
+        for rec in records:
+            html_lines += [
+                "<div class='card'>",
+                f"<img class='img' src='{rec['filename']}'/>",
+                f"<div class='meta'><b>image_id:</b> {rec['image_id']}</div>",
+                f"<div class='meta'><b>eyeglasses_proba:</b> {rec['eyeglasses_proba']:.2f}</div>",
+                f"<div class='meta'><b>detector_conf:</b> {rec['detector_conf']:.2f}</div>",
+                f"<div class='meta'><b>is_target:</b> {rec['is_target']}</div>",
+                f"<div class='meta'><b>sunglasses_prediction:</b> {rec['sunglasses_prediction']}</div>",
+                f"<div class='meta'><b>face_size:</b> {rec['face_size']}</div>",
+                f"<div class='meta'><b>face_bbox:</b> {rec['face_bbox']}</div>",
+                (f"<div class='meta'><b>image_url:</b> <a href='{rec['image_url']}' target='_blank' rel='noopener noreferrer'>link</a></div>" if rec['image_url'] else "<div class='meta'><b>image_url:</b> -</div>"),
+                "</div>"
+            ]
+        html_lines.append("</body></html>")
+        (folder / "index.html").write_text("\n".join(html_lines), encoding="utf-8")
 
     target_df = df[df["is_target"] == True]
     if not target_df.empty:
         target_sample = target_df.sample(n=min(sample_size, len(target_df)))
         for idx, row in target_sample.iterrows():
             img_bytes = row["cropped_face_jpeg"]
-            with open(final_targets_dir / f"target_{idx}.jpg", "wb") as f:
+            fname = f"target_{idx}_clf{float(row.get('has_eyewear_confidence', row.get('glasses_confidence', 0.0)) or 0.0):.2f}_det{float(row.get('face_score', 0.0) or 0.0):.2f}.jpg"
+            with open(final_targets_dir / fname, "wb") as f:
                 f.write(img_bytes)
         logger.info(f"Saved {len(target_sample)} final target samples.")
+        _write_metadata_and_index(target_sample, final_targets_dir, "target")
 
     rejected_df = df[df["sunglasses_prediction"] == True]
     if not rejected_df.empty:
         rejected_sample = rejected_df.sample(n=min(sample_size, len(rejected_df)))
         for idx, row in rejected_sample.iterrows():
             img_bytes = row["cropped_face_jpeg"]
-            with open(rejected_sunglasses_dir / f"rejected_{idx}.jpg", "wb") as f:
+            fname = f"rejected_{idx}_clf{float(row.get('has_eyewear_confidence', row.get('glasses_confidence', 0.0)) or 0.0):.2f}_det{float(row.get('face_score', 0.0) or 0.0):.2f}.jpg"
+            with open(rejected_sunglasses_dir / fname, "wb") as f:
                 f.write(img_bytes)
         logger.info(f"Saved {len(rejected_sample)} rejected sunglasses samples.")
+        _write_metadata_and_index(rejected_sample, rejected_sunglasses_dir, "rejected")
+
+    # New: False-negative candidates — large faces above size threshold predicted as not target
+    try:
+        size_thr = int(config.model_params.face_detection.min_face_size)
+    except Exception:
+        size_thr = 0
+    try:
+        # faces considered by classifier but not selected as target
+        non_target_df = df[(df["is_target"] == False)]
+        # ensure face_size is present and large enough
+        large_non_target_df = non_target_df[non_target_df["face_size"].apply(lambda s: isinstance(s, (list, tuple)) and len(s) == 2 and (s[0] >= size_thr and s[1] >= size_thr))]
+        if not large_non_target_df.empty:
+            sample = large_non_target_df.sample(n=min(sample_size, len(large_non_target_df)))
+            for idx, row in sample.iterrows():
+                img_bytes = row.get("cropped_face_jpeg")
+                if not img_bytes:
+                    continue
+                fname = f"candidate_{idx}_clf{float(row.get('has_eyewear_confidence', row.get('glasses_confidence', 0.0)) or 0.0):.2f}_det{float(row.get('face_score', 0.0) or 0.0):.2f}.jpg"
+                with open(false_negative_candidates_dir / fname, "wb") as f:
+                    f.write(img_bytes)
+            logger.info(f"Saved {len(sample)} false-negative candidate samples.")
+            _write_metadata_and_index(sample, false_negative_candidates_dir, "candidate")
+        else:
+            logger.info("No large non-target faces to sample for false-negative candidates.")
+    except Exception as e:
+        logger.warning(f"Failed generating false-negative candidates: {e}")
 
 
 def create_high_face_count_samples(metadata: dict, output_dir: Path):

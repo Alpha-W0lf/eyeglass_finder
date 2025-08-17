@@ -35,6 +35,7 @@ class FaceDetectionConfig:
 class ClassificationConfig:
     present_label: str
     output_image_format: str
+    eyewear_prob_threshold: float = 0.5
 
 
 @dataclass
@@ -95,6 +96,16 @@ class ObservabilityConfig:
 
 
 @dataclass
+class SamplingConfig:
+    """Controls how face crops are generated for artifacts and (optionally) classifier input."""
+    square_crop: bool = True
+    crop_margin: float = 0.20
+    clamp_to_image: bool = True
+    pad_mode: str | None = None
+    apply_to_classifier: bool = False
+
+
+@dataclass
 class AppConfig:
     paths: PathsConfig
     data_processing: DataProcessingConfig
@@ -105,6 +116,7 @@ class AppConfig:
     hardware: HardwareConfig
     performance: PerformanceConfig
     observability: ObservabilityConfig
+    sampling: SamplingConfig | None = None
     # Optional at runtime; set by scripts
     run_id: str | None = None
 
@@ -144,6 +156,7 @@ def load_config(config_path: str | Path) -> AppConfig:
         hardware=hardware,
         performance=performance,
         observability=observability,
+        sampling=SamplingConfig(**raw.get("sampling", {})) if isinstance(raw.get("sampling", {}), dict) else SamplingConfig(),
     )
 
 
@@ -180,5 +193,6 @@ def config_from_dict(raw: Dict[str, Any]) -> AppConfig:
         hardware=hardware,
         performance=performance,
         observability=observability,
+        sampling=SamplingConfig(**raw.get("sampling", {})) if isinstance(raw.get("sampling", {}), dict) else SamplingConfig(),
         run_id=raw.get("run_id"),
     )

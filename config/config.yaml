@@ -29,7 +29,7 @@ model_params:
     min_face_size: 100
     # The confidence score threshold for a detected face to be considered valid.
     # Faces with a confidence score below this value will be discarded.
-    min_confidence: 0.50
+    min_confidence: 0.75
     # Whether to keep all detected faces per image or only the most likely one.
     keep_all: false
     # The target size (width, height) to which cropped faces are resized
@@ -42,6 +42,8 @@ model_params:
     present_label: "present"
     # The image format (e.g., JPEG, PNG) for storing the cropped face images.
     output_image_format: "JPEG"
+    # Threshold on classifier probability for marking as eyewear present
+    eyewear_prob_threshold: 0.65
 
 # Execution Parameters
 execution:
@@ -98,5 +100,15 @@ observability:
 report_generation:
   # The number of sample images to save for qualitative analysis.
   qualitative_analysis_sample_size: 20
+
+# -----------------------------------------------------------------------------
+# Sampling / Cropping Settings
+# -----------------------------------------------------------------------------
+sampling:
+  square_crop: true            # center square crop around detection
+  crop_margin: 0.20            # 20% expansion of max(width,height)
+  clamp_to_image: true         # clamp crop to image bounds (no padding)
+  pad_mode: null               # set to 'edge' to pad instead of clamp
+  apply_to_classifier: false   # artifacts only; disable for classifier input
 
 # -----------------------------------------------------------------------------

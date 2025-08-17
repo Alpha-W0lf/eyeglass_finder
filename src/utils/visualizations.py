@@ -167,32 +167,51 @@ def plot_face_count_distribution(face_count_distribution: dict, output_path: Pat
         logger.warning("No face count distribution data provided. Skipping plot.")
         return
     logger.info(f"Plotting face count distribution to {output_path}...")
-    face_count_int_dict = {}
-    for key, value in face_count_distribution.items():
+
+    # Convert keys/values to ints and build a histogram-like mapping
+    data = []
+    for k, v in face_count_distribution.items():
         try:
-            face_count_int_dict[int(key)] = value
+            k_i = int(k); v_i = int(v)
+            data.extend([k_i] * v_i)
         except (ValueError, TypeError):
-            logger.warning(f"Skipping invalid face count key: {key}")
+            logger.warning(f"Skipping invalid face count key: {k}")
             continue
-    face_counts = list(face_count_int_dict.keys())
-    image_counts = list(face_count_int_dict.values())
-    sorted_data = sorted(zip(face_counts, image_counts))
-    face_counts, image_counts = zip(*sorted_data)
-    plt.figure(figsize=(12, 8))
-    bars = plt.bar(face_counts, image_counts, color='steelblue', alpha=0.7, edgecolor='black')
-    for bar, count in zip(bars, image_counts):
+    if not data:
+        logger.warning("No valid face count data to plot.")
+        return
+
+    # Use bins to reduce clutter: separate 0, 1, then 2-5, 6-10, 11-20, 21-50, 51+
+    import numpy as np
+    max_faces = int(np.max(data))
+    base_edges = [-0.5, 0.5, 1.5, 5.5, 10.5, 20.5, 50.5]
+    final_edge = max(max_faces + 0.5, 50.5)
+    # Keep only increasing edges less than final_edge then append final_edge
+    edges = [e for e in base_edges if e < final_edge] + [final_edge]
+    # Ensure strictly increasing and at least two edges
+    edges = sorted(list(dict.fromkeys(edges)))
+    if len(edges) < 2:
+        edges = [-0.5, final_edge]
+    # Build labels to match bins
+    label_templates = ["0", "1", "2-5", "6-10", "11-20", "21-50"]
+    labels = label_templates[: len(edges) - 2] + [f">{int(edges[-2]-0.5)}"]
+    counts, _ = np.histogram(data, bins=np.array(edges))
+
+    plt.figure(figsize=(10, 6))
+    bars = plt.bar(labels, counts, color='steelblue', alpha=0.85, edgecolor='black')
+    for bar, count in zip(bars, counts):
         height = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width()/2., height + max(image_counts)*0.01, f'{count}', ha='center', va='bottom', fontsize=10)
-    plt.title('Distribution of Faces per Image\n(Diagnostic for High Face Detection Count)', fontsize=16, pad=20)
-    plt.xlabel('Number of Faces Detected per Image', fontsize=12)
-    plt.ylabel('Number of Images', fontsize=12)
-    plt.xticks(face_counts)
+        plt.text(bar.get_x() + bar.get_width()/2., height + max(counts.max(), 1)*0.02, f'{int(count)}', ha='center', va='bottom', fontsize=10)
+    plt.title('Faces per Image (Binned)')
+    plt.xlabel('Faces detected per image (bins)')
+    plt.ylabel('Number of images')
     plt.grid(axis='y', alpha=0.3)
-    total_images = sum(image_counts)
-    total_faces = sum(fc * ic for fc, ic in zip(face_counts, image_counts))
+
+    total_images = len(data)
+    total_faces = int(np.sum(data))
     avg_faces_per_image = total_faces / total_images if total_images > 0 else 0
-    max_faces = max(face_counts) if face_counts else 0
-    stats_text = f'Total Images: {total_images:,}\n'
+    max_faces = int(np.max(data))
+    stats_text = f'Total Images (with faces): {total_images:,}\n'
     stats_text += f'Total Faces: {total_faces:,}\n'
     stats_text += f'Avg Faces/Image: {avg_faces_per_image:.2f}\n'
     stats_text += f'Max Faces in Image: {max_faces}'

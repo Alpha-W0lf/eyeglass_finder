@@ -77,7 +77,7 @@ def initialize_worker(config_dict: dict):
         raise
 
 
-def process_chunk_of_data(image_df: pd.DataFrame) -> Tuple[int, int, List[Dict], List[Dict]]:
+def process_chunk_of_data(image_df: pd.DataFrame) -> Tuple[int, int, List[Dict], List[Dict], List[Dict], float, float]:
     """
     Processes a chunk of image data.
     This function is the main entry point for a worker process task.
@@ -98,7 +98,7 @@ def process_chunk_of_data(image_df: pd.DataFrame) -> Tuple[int, int, List[Dict],
 
     try:
         # The core processing logic is delegated to the pipeline module.
-        valid_faces, diagnostics = process_images(image_df)
+        valid_faces, diagnostics, high_face_images, detect_time_s, classify_time_s = process_images(image_df)
         
         # After processing, calculate some basic statistics.
         total_faces_detected = len(valid_faces)
@@ -107,13 +107,13 @@ def process_chunk_of_data(image_df: pd.DataFrame) -> Tuple[int, int, List[Dict],
         _log_worker_memory_usage(f"Chunk End")
         
         # Return statistics and detailed results for aggregation in the main process.
-        return num_images, total_faces_detected, valid_faces, diagnostics
+        return num_images, total_faces_detected, valid_faces, diagnostics, high_face_images, detect_time_s, classify_time_s
     
     except Exception:
         logger.error(f"Worker {os.getpid()} CRASHED.", exc_info=True)
         # In case of a crash, return empty results and stats so the main
         # process can continue aggregating results from other workers.
-        return num_images, 0, [], []
+        return num_images, 0, [], [], [], 0.0, 0.0
     finally:
         # Perform garbage collection at the end of each task to release memory.
         gc.collect()

@@ -109,11 +109,15 @@ This plot shows the distribution of how many faces were detected per image. The 
 
 **Final Targets (Sample)**: A sample of faces that were correctly identified and included in the final dataset.
 
-[View Full Sample](./{qual_dir_name}/final_targets)
+[Open Index](./{qual_dir_name}/final_targets/index.html)
 
 **Rejected Sunglasses (Sample)**: A sample of faces that were rejected because the model predicted they were wearing sunglasses. This is a key area for failure analysis.
 
-[View Full Sample](./{qual_dir_name}/rejected_as_sunglasses)
+[Open Index](./{qual_dir_name}/rejected_as_sunglasses/index.html)
+
+**False-Negative Candidates (Sample)**: Large faces above the size threshold that were classified as non-target. Manually inspect to spot missed eyeglasses.
+
+[Open Index](./{qual_dir_name}/false_negative_candidates/index.html)
 
 **High Face Count Images (Diagnostic)**: Images with the highest number of detected faces (>5 faces per image). These are saved for manual inspection to investigate the unexpectedly high face detection count.
 
