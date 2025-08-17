@@ -18,6 +18,17 @@ import json
 from datetime import datetime
 from loguru import logger
 import numpy as np
+import psutil
+import os
+
+
+def log_memory_usage(stage: str):
+    """Logs the current memory usage of the process."""
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    logger.info(
+        f"MEMORY_PROFILE ({os.getpid()}): Stage: {stage} - RSS: {mem_info.rss / 1024**2:.2f} MB"
+    )
 
 
 @dataclass

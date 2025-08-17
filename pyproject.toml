@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Two-stage pipeline for face detection and eyewear classification with reproducible runs and reporting."
 authors = ["Tom Chacko <tchacko615@gmail.com>"]
 readme = "README.md"
+packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0"

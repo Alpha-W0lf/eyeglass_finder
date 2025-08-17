@@ -9,7 +9,7 @@ import json
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.utils.config import load_config, AppConfig
-from src.utils.logging import setup_logging
+from src.utils.logging_setup import setup_logging
 from src.utils.metrics import MetricsManager
 from src.reporting.report_generator import generate_report
 from src.utils.visualizations import (

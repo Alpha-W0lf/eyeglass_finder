@@ -38,6 +38,20 @@ def setup_logging(log_level: str = "INFO", log_file: Optional[str | Path] = None
         )
 
 
+def configure_worker_logging():
+    """
+    Configures a basic logger for a worker process.
+    This avoids file-based logging and other complexities not needed
+    for transient worker processes.
+    """
+    logger.remove()
+    logger.add(
+        sink=lambda msg: print(msg, end=""),
+        level="INFO",
+        format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+    )
+
+
 def get_logger():
     """Return the configured global logger."""
     return logger

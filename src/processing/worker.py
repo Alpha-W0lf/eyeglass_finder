@@ -14,191 +14,106 @@ multiprocessing pool. It has two key functions:
 """
 from functools import partial
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import gc
 import io
 import os
 import time
 import traceback
+import psutil
 
 import pandas as pd
 from loguru import logger
-from PIL import Image
 
-from src.modeling.model_loader import load_face_detector, load_glasses_classifiers
-from src.processing.pipeline import detect_and_crop_faces, classify_faces
-from src.utils.logging import setup_logging
-from src.utils.config import AppConfig
-from src.utils.device import get_best_available_device
+from src.processing.pipeline import (
+    initialize_pipeline_worker,
+    process_images,
+)
+from src.utils.config import AppConfig, config_from_dict
+from src.utils.logging_setup import configure_worker_logging
 
-# Globals per worker process
-g_worker_config: AppConfig | Dict = None
-g_face_detector = None
-g_glasses_classifiers: Dict[str, object] = None
-g_inference_lock = None
-
-
-def initialize_worker(config: AppConfig, lock):
-    """Initializes models and logging for a single worker process."""
-    global g_worker_config, g_face_detector, g_glasses_classifiers, g_inference_lock
-
-    g_worker_config = config
-    g_inference_lock = lock
-
-    # Configure logging for this worker process
-    setup_logging(log_level=config.logging.level)  # file sink optional
-
-    device = get_best_available_device()
-
-    g_face_detector = load_face_detector(config, device=device)
-    g_glasses_classifiers = load_glasses_classifiers(device=device)
-
-    logger.info(f"Worker process {os.getpid()} initialized on device '{device}'.")
+# A global variable to hold the configuration for the worker process.
+# Using a global variable is a common pattern in multiprocessing to avoid
+# passing the config object repeatedly for every task.
+g_worker_config: AppConfig = None
 
 
-def process_chunk_of_data(
-    chunk: pd.DataFrame, config: dict
-) -> tuple[list[dict] | dict, dict, int, float, list, list, list]:
+def _log_worker_memory_usage(stage: str):
+    """Logs the current memory usage of the worker process."""
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    logger.info(
+        f"WORKER_MEMORY_PROFILE ({os.getpid()}): Stage: {stage} - RSS: {mem_info.rss / 1024**2:.2f} MB"
+    )
+
+
+def initialize_worker(config_dict: dict):
     """
-    Main processing function executed by each worker.
+    Initializes the worker process.
+    - Configures logging for the worker.
+    - Stores the application config in a global variable for this process.
+    - Initializes the pipeline models (FaceDetector, GlassesDetector).
     """
-    start_time = time.time()
+    global g_worker_config
+    
+    # Set up the logger for this specific worker process.
+    # This ensures that logs from different workers can be distinguished.
+    configure_worker_logging()
+    
+    # Store the config in a global variable for this worker process.
+    # This avoids having to pass the config object with every task.
+    g_worker_config = config_dict
+    
     try:
-        pid = os.getpid()
-        num_images_in_chunk = len(chunk)
-        logger.info(
-            f"WORKER_START: Worker {pid} received a chunk of {num_images_in_chunk} rows."
-        )
-
-        if not isinstance(chunk, pd.DataFrame):
-            chunk = pd.DataFrame.from_records([chunk])
-
-        if not g_face_detector or not g_glasses_classifiers:
-            logger.warning("Worker models not initialized, running initializer...")
-            initialize_worker(config, None)
-
-        chunk_metrics = {
-            "images_processed": len(chunk),
-            "decoding_errors": 0,
-            "images_with_no_faces": 0,
-            "total_faces_detected": 0,
-            "confidence_filtered_count": 0,
-            "size_filtered_count": 0,
-            "faces_classified_count": 0,
-            "final_target_count": 0,
-            "sunglasses_count": 0,
-            "classification_error_count": 0,
-        }
-
-        image_bytes_batch = []
-        worker_format_errors = 0
-        pre_diag_entries: List[dict] = []
-        for idx, item in enumerate(chunk["image"]):
-            if isinstance(item, dict) and "bytes" in item:
-                image_bytes_batch.append(item["bytes"])  # WIT format
-            elif isinstance(item, bytes):
-                image_bytes_batch.append(item)  # Direct bytes format
-            else:
-                logger.warning(
-                    f"Skipping an item in 'image' column of unknown type: {type(item)}"
-                )
-                worker_format_errors += 1
-                try:
-                    image_url = chunk["image_url"].iloc[idx]
-                except Exception:
-                    image_url = "N/A"
-                try:
-                    source_file = chunk["source_file"].iloc[idx]
-                except Exception:
-                    source_file = "unknown"
-                pre_diag_entries.append(
-                    {
-                        "image_url": image_url,
-                        "num_faces": 0,
-                        "failure_reason": "invalid_image_format",
-                        "source_file": source_file,
-                    }
-                )
-
-        image_metadatas = chunk[["image_url", "source_file"]].to_dict("records")
-
-        if not image_bytes_batch:
-            logger.warning(
-                f"Worker {pid}: No valid image bytes found in the chunk. Skipping."
-            )
-            del image_bytes_batch, image_metadatas
-            gc.collect()
-            return [], chunk_metrics, num_images_in_chunk, time.time() - start_time, [], pre_diag_entries, []
-
-        # Stage 1: Detect and crop faces
-        start_time_det = time.time()
-        (
-            cropped_faces,
-            detection_metrics,
-            raw_detection_count,
-            confidence_scores,
-            faces_per_image_stats,
-            high_face_count_images,
-        ) = detect_and_crop_faces(
-            image_bytes_batch, image_metadatas, g_face_detector, config, g_inference_lock
-        )
-        detection_time = time.time() - start_time_det
-
-        pipeline_decoding_errors = detection_metrics.get("decoding_errors", 0)
-        total_decoding_errors = worker_format_errors + pipeline_decoding_errors
-
-        chunk_metrics.update(detection_metrics)
-        chunk_metrics["decoding_errors"] = total_decoding_errors
-        chunk_metrics["total_faces_detected"] = raw_detection_count
-
-        if not cropped_faces:
-            del image_bytes_batch, image_metadatas
-            gc.collect()
-            return [], chunk_metrics, num_images_in_chunk, time.time() - start_time, [], faces_per_image_stats + pre_diag_entries, []
-
-        detection_time_per_face = detection_time / len(cropped_faces) if cropped_faces else 0
-        for face in cropped_faces:
-            face["detection_time_seconds"] = detection_time_per_face
-
-        # Stage 2: Classify
-        start_time_cls = time.time()
-        classified_faces, classification_metrics = classify_faces(
-            cropped_faces,
-            g_glasses_classifiers["eyeglasses"],
-            g_glasses_classifiers["sunglasses"],
-            config,
-        )
-        classification_time = time.time() - start_time_cls
-        chunk_metrics.update(classification_metrics)
-
-        classification_time_per_face = (
-            classification_time / len(classified_faces) if classified_faces else 0
-        )
-        for face in classified_faces:
-            face["classification_time_seconds"] = classification_time_per_face
-
-        batch_results = classified_faces
-        final_count = sum(1 for f in batch_results if f.get("is_target"))
-        chunk_metrics["final_target_count"] = final_count
-
-        processing_time = time.time() - start_time
-        del image_bytes_batch, image_metadatas, cropped_faces, classified_faces
-        gc.collect()
-
-        return (
-            batch_results,
-            chunk_metrics,
-            num_images_in_chunk,
-            processing_time,
-            confidence_scores,
-            faces_per_image_stats + pre_diag_entries,
-            high_face_count_images,
-        )
-
+        # Initialize the pipeline components (models) for this worker.
+        # This is a potentially time-consuming operation, so it's done once
+        # when the worker process is created.
+        initialize_pipeline_worker(g_worker_config)
     except Exception as e:
-        tb_str = traceback.format_exc()
-        logger.error(f"Worker {os.getpid()} CRASHED: {e}\n{tb_str}")
+        # If model loading fails, log a critical error and re-raise.
+        # This will cause the worker process to fail, which is the desired
+        # behavior if it cannot be initialized correctly.
+        logger.critical(f"Worker {os.getpid()}: Failed to initialize pipeline worker: {e}", exc_info=True)
+        raise
 
-        error_info = {"error": str(e), "traceback": tb_str, "worker_id": os.getpid()}
+
+def process_chunk_of_data(image_df: pd.DataFrame) -> Tuple[int, int, List[Dict], List[Dict]]:
+    """
+    Processes a chunk of image data.
+    This function is the main entry point for a worker process task.
+    
+    Args:
+        image_df: A pandas DataFrame containing image data.
+    
+    Returns:
+        A tuple with statistics and results for the processed chunk.
+    """
+    if g_worker_config is None:
+        raise RuntimeError("Worker config not initialized.")
+        
+    chunk_id = f"Worker-{os.getpid()}"
+    num_images = len(image_df)
+    _log_worker_memory_usage(f"Chunk Start")
+    logger.info(f"WORKER_START: Worker {os.getpid()} received a chunk of {num_images} rows.")
+
+    try:
+        # The core processing logic is delegated to the pipeline module.
+        valid_faces, diagnostics = process_images(image_df)
+        
+        # After processing, calculate some basic statistics.
+        total_faces_detected = len(valid_faces)
+        images_with_faces = len(set(d["image_id"] for d in valid_faces))
+
+        _log_worker_memory_usage(f"Chunk End")
+        
+        # Return statistics and detailed results for aggregation in the main process.
+        return num_images, total_faces_detected, valid_faces, diagnostics
+    
+    except Exception:
+        logger.error(f"Worker {os.getpid()} CRASHED.", exc_info=True)
+        # In case of a crash, return empty results and stats so the main
+        # process can continue aggregating results from other workers.
+        return num_images, 0, [], []
+    finally:
+        # Perform garbage collection at the end of each task to release memory.
         gc.collect()
-        return error_info, {}, 0, time.time() - start_time, [], [], []

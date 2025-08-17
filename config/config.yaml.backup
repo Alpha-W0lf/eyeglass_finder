@@ -62,37 +62,6 @@ logging:
   format: "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
 
 # -----------------------------------------------------------------------------
-# Hardware Specific Settings
-# -----------------------------------------------------------------------------
-hardware:
-  max_workers: 8              # Phase 1 target (safer intermediate step)
-  worker_memory_limit_mb: 1500 # Per-worker memory cap for 10 workers
-  use_mps_acceleration: true  # Will enable in Task 1.4
-  device_override: null        # Manual device override if needed
-
-# -----------------------------------------------------------------------------
-# Performance Tuning Parameters
-# -----------------------------------------------------------------------------
-performance:
-  prefetch_chunks: 4            # Number of data chunks to prefetch
-  gc_frequency: 10              # How often to run garbage collection (every N chunks)
-  thread_pool_workers: 4        # Threads for I/O bound tasks within workers
-  batch_optimization: true      # Enable/disable batch-level optimizations
-  inference_batch_size: 64      # Number of images to process in one go by the model
-
-# -----------------------------------------------------------------------------
-# Observability Enhancements
-# -----------------------------------------------------------------------------
-observability:
-  detailed_metrics: true       # Enhanced metric collection
-  memory_profiling: false      # Enable for debugging only
-  benchmark_mode: true         # Enable performance regression detection
-  performance_alerts:
-    cpu_threshold: 90          # Alert if CPU > 90%
-    memory_threshold: 85       # Alert if memory > 85%
-    min_throughput: 8.8        # Minimum images/second (10% below baseline)
-
-# -----------------------------------------------------------------------------
 # Report Generation Settings
 # -----------------------------------------------------------------------------
 report_generation:
