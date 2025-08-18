@@ -270,7 +270,7 @@ def process_images(image_df: pd.DataFrame) -> Tuple[List[Dict], List[Dict], List
                             else:
                                 x0c = max(0, x0); y0c = max(0, y0); x1c = min(W, x1); y1c = min(H, y1)
                                 crop_for_artifacts = original_image.crop((x0c, y0c, x1c, y1c))
-                        else:
+    else:
                             crop_for_artifacts = original_image.crop((xmin, ymin, xmax, ymax))
 
                         # Choose classifier input image depending on flag
@@ -293,7 +293,7 @@ def process_images(image_df: pd.DataFrame) -> Tuple[List[Dict], List[Dict], List
                             batch_bs = max(4, base_bs // 4)
                         elif avail_gb < 8.0:
                             batch_bs = max(8, base_bs // 2)
-                        else:
+        else:
                             batch_bs = base_bs
                         logger.debug(f"Worker {os.getpid()} classification batch size: {batch_bs} (avail_gb={avail_gb:.2f})")
                         log_memory_usage(f"Worker {os.getpid()}: Before batch classify ({len(clf_imgs)} faces, bs={batch_bs})")
@@ -337,7 +337,7 @@ def process_images(image_df: pd.DataFrame) -> Tuple[List[Dict], List[Dict], List
                                 "face_score": float(conf.item()) if hasattr(conf, "item") else float(conf),
                                 "has_eyewear_confidence": float(eyewear_proba),
                                 "glasses_confidence": float(eyewear_proba),
-                                "sunglasses_prediction": False,
+                "sunglasses_prediction": False,
                                 "is_target": is_target,
                                 "cropped_face_jpeg": cropped_jpeg_bytes,
                             })

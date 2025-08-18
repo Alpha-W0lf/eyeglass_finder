@@ -142,3 +142,8 @@ cython_debug/
 
 # Pipeline run artifacts
 outputs/ 
+# Outputs
+/outputs/*
+!/outputs/.gitkeep
+/post_run_report.md
+!/docs/latest_run_showcase/ 
