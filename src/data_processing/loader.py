@@ -14,6 +14,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from pathlib import Path
 from loguru import logger
+import os as _os
 from typing import Iterator, Dict, Any
 from pandera.errors import SchemaError
 
@@ -41,7 +42,8 @@ def stream_data_generator(
         Iterator[pd.DataFrame]: A generator that yields pandas DataFrames,
                                 each representing a chunk of the data.
     """
-    logger.info(f"PyArrow version detected: {pa.__version__}")
+    if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+        logger.info(f"PyArrow version detected: {pa.__version__}")
     
     if not data_files:
         logger.warning(f"No data files provided to the generator.")
@@ -54,55 +56,68 @@ def stream_data_generator(
         logger.info(f"Streaming data from {file.name}...")
         try:
             # First, try to examine the file structure
-            logger.debug(f"Reading parquet file structure for {file.name}")
+            if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                logger.debug(f"Reading parquet file structure for {file.name}")
             parquet_file = pq.ParquetFile(file)
             
             # Define the columns to be loaded based on the input schema
             required_columns = list(InputSchema.to_schema().columns.keys())
-            logger.info(f"Loader will only read required columns: {required_columns}")
+            if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                logger.info(f"Loader will only read required columns: {required_columns}")
             
             # Log schema information
-            logger.debug(f"Parquet schema for {file.name}: {parquet_file.schema}")
-            logger.debug(f"Parquet metadata for {file.name}: {parquet_file.metadata}")
+            if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                logger.debug(f"Parquet schema for {file.name}: {parquet_file.schema}")
+                logger.debug(f"Parquet metadata for {file.name}: {parquet_file.metadata}")
             
             # Try different approaches to read the data
             for batch_idx, batch in enumerate(parquet_file.iter_batches(batch_size=chunk_size, columns=required_columns)):
                 try:
-                    logger.debug(f"Processing batch {batch_idx} from {file.name}")
-                    logger.debug(f"Batch schema: {batch.schema}")
+                    if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                        logger.debug(f"Processing batch {batch_idx} from {file.name}")
+                        logger.debug(f"Batch schema: {batch.schema}")
                     
                     # Try multiple conversion strategies
                     chunk_df = None
                     
                     # Strategy 1: Standard conversion
                     try:
-                        logger.debug(f"Attempting standard batch.to_pandas() for batch {batch_idx}")
+                        if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                            logger.debug(f"Attempting standard batch.to_pandas() for batch {batch_idx}")
                         chunk_df = batch.to_pandas()
-                        logger.debug(f"Standard conversion successful for batch {batch_idx}")
+                        if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                            logger.debug(f"Standard conversion successful for batch {batch_idx}")
                     except Exception as e1:
-                        logger.warning(f"Standard conversion failed for batch {batch_idx}: {e1}")
+                        if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                            logger.warning(f"Standard conversion failed for batch {batch_idx}: {e1}")
                         
                         # Strategy 2: Conversion with ignore_metadata
                         try:
-                            logger.debug(f"Attempting batch.to_pandas(ignore_metadata=True) for batch {batch_idx}")
+                            if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                                logger.debug(f"Attempting batch.to_pandas(ignore_metadata=True) for batch {batch_idx}")
                             chunk_df = batch.to_pandas(ignore_metadata=True)
-                            logger.debug(f"ignore_metadata conversion successful for batch {batch_idx}")
+                            if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                                logger.debug(f"ignore_metadata conversion successful for batch {batch_idx}")
                         except Exception as e2:
-                            logger.warning(f"ignore_metadata conversion failed for batch {batch_idx}: {e2}")
+                            if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                                logger.warning(f"ignore_metadata conversion failed for batch {batch_idx}: {e2}")
                             
                             # Strategy 3: Convert to table first, then remove metadata
                             try:
-                                logger.debug(f"Attempting table conversion with metadata removal for batch {batch_idx}")
+                                if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                                    logger.debug(f"Attempting table conversion with metadata removal for batch {batch_idx}")
                                 table = batch.to_table()
                                 # Remove all metadata
                                 clean_table = table.replace_schema_metadata({})
                                 chunk_df = clean_table.to_pandas()
-                                logger.debug(f"Clean table conversion successful for batch {batch_idx}")
+                                if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                                    logger.debug(f"Clean table conversion successful for batch {batch_idx}")
                             except Exception as e3:
-                                logger.error(f"All conversion strategies failed for batch {batch_idx}")
-                                logger.error(f"Strategy 1 error: {e1}")
-                                logger.error(f"Strategy 2 error: {e2}")
-                                logger.error(f"Strategy 3 error: {e3}")
+                                if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                                    logger.error(f"All conversion strategies failed for batch {batch_idx}")
+                                    logger.error(f"Strategy 1 error: {e1}")
+                                    logger.error(f"Strategy 2 error: {e2}")
+                                    logger.error(f"Strategy 3 error: {e3}")
                                 continue
                     
                     if chunk_df is not None:
@@ -116,7 +131,11 @@ def stream_data_generator(
                         try:
                             # Validate the input schema before yielding
                             InputSchema.validate(chunk_df, lazy=True)
-                            logger.info(f"Generator yielding a chunk of {len(chunk_df)} rows from {file.name}.")
+                            # Reduce noise: downgrade per-chunk message unless verbose loader is enabled
+                            if _os.environ.get("ENABLE_VERBOSE_LOADER", "0") == "1":
+                                logger.info(f"Generator yielding a chunk of {len(chunk_df)} rows from {file.name}.")
+                            else:
+                                logger.debug(f"Generator yielding a chunk of {len(chunk_df)} rows from {file.name}.")
                             yield chunk_df
                         except SchemaError as err:
                             logger.warning(

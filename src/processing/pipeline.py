@@ -141,19 +141,40 @@ def process_images(image_df: pd.DataFrame) -> Tuple[List[Dict], List[Dict], List
         mini_batch_df = image_df.iloc[i:i + batch_size]
         
         # JIT Loading: Convert image bytes to PIL images only for the current mini-batch
+        import warnings as _warnings
         mini_batch_images = []
+        mini_batch_bytes = []
         for _, row in mini_batch_df.iterrows():
             try:
-                # Attempt to open the image from bytes
-                image = Image.open(io.BytesIO(row.image['bytes'])).convert("RGB")
-                mini_batch_images.append(image)
+                # Extract raw bytes from supported representations
+                raw_field = row.image
+                raw_bytes = None
+                if isinstance(raw_field, dict):
+                    raw_bytes = raw_field.get('bytes')
+                elif isinstance(raw_field, (bytes, bytearray, memoryview)):
+                    raw_bytes = bytes(raw_field)
+                if not raw_bytes:
+                    raise ValueError("Unsupported image field format")
+
+                # Open robustly and normalize modes while suppressing benign PIL warnings
+                with _warnings.catch_warnings():
+                    _warnings.simplefilter("ignore", UserWarning)
+                    pil_img = Image.open(io.BytesIO(raw_bytes))
+                # Handle palette images with transparency more explicitly to avoid warnings
+                if getattr(pil_img, "mode", None) == "P" and isinstance(getattr(pil_img, "info", {}), dict) and "transparency" in pil_img.info:
+                    pil_img = pil_img.convert("RGBA").convert("RGB")
+                else:
+                    pil_img = pil_img.convert("RGB")
+                mini_batch_images.append(pil_img)
+                mini_batch_bytes.append(raw_bytes)
             except Exception:
                 # Log the error and add a placeholder for index alignment
                 logger.warning(f"Could not decode image {row.name}. Skipping.")
                 diagnostics.append({"image_id": row.name, "reason": "image_decoding_error"})
-                mini_batch_images.append(None) # Keep list size consistent
+                mini_batch_images.append(None)  # Keep list size consistent
+                mini_batch_bytes.append(None)
 
-        mini_batch_tuples = [(row.name, row.image['bytes']) for _, row in mini_batch_df.iterrows()]
+        mini_batch_tuples = [(row.name, mini_batch_bytes[idx]) for idx, (_, row) in enumerate(mini_batch_df.iterrows())]
         
         log_memory_usage(f"Worker {os.getpid()}: Loaded mini-batch {i//batch_size + 1}/{total_images//batch_size + 1}")
 

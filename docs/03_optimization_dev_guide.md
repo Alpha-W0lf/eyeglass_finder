@@ -7,27 +7,36 @@
 **Expected Improvement:** Operational excellence + 10-15% efficiency optimization
 
 ## Prerequisites
-- [ ] Phase 2 completed successfully (3-5x baseline improvement achieved)
-- [ ] Stable performance with optimized worker configuration
-- [ ] All major optimizations functional (MPS, batch processing, memory tuning)
-- [ ] Git checkpoint `phase2-complete` exists
+- [x] Phase 2 completed successfully (3-5x baseline improvement achieved)
+- [x] Stable performance with optimized worker configuration
+- [x] All major optimizations functional (MPS, batch processing, memory tuning)
+- [x] Git checkpoint `phase2-complete` exists
 
 Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-computation, explicit pre-allocation) should be considered only if profiling in Phase 2 identifies a clear bottleneck.
 
 ## Phase 3 Task Sequence
 
+### Scope Decision (Proceed vs Defer)
+- Proceed now:
+  - 3.1 Production Logging & Observability (subset: structured JSON logging, main-process integration, config toggles)
+  - 3.3 Stress Testing & Production Validation (framework + plan; executions will run after implementation)
+  - 3.4 Production Deployment Preparation (templates and docs)
+  - 3.5 Final Validation & Documentation (docs/templates now; final run after implementation)
+- Defer for later:
+  - 3.2 Performance Profiling & Advanced Tuning (high complexity, diminishing returns; revisit only if monitoring flags clear bottlenecks)
+
 ### Task 3.1: Production Logging & Observability (3-4 hours)
 **Objective:** Implement comprehensive logging and monitoring for production deployment
 
 #### Subtasks:
-- [ ] **3.1.1** Create git checkpoint before Phase 3
+- [x] **3.1.1** Create git checkpoint before Phase 3
   ```bash
   git tag pre-phase3-optimization
   git commit -am "Checkpoint: Before Phase 3 production excellence"
   ```
 
-- [ ] **3.1.2** Implement structured JSON logging
- - [ ] **3.1.2** Implement structured JSON logging
+- [x] **3.1.2** Implement structured JSON logging (main process JSONL output)
+ - [x] **3.1.2** Implement structured JSON logging
   **Target:** Create `src/utils/production_logger.py`
   ```python
   import json
@@ -52,7 +61,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
           """Log major processing milestones with timing"""
   ```
 
-- [ ] **3.1.3** Implement distributed tracing across workers
+- [ ] **3.1.3** Implement distributed tracing across workers (Deferred)
   **Target:** Create `src/utils/distributed_tracer.py`
   ```python
   import uuid
@@ -73,14 +82,14 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
           """Generate trace summary for performance analysis"""
   ```
 
-- [ ] **3.1.4** Integrate structured logging into existing pipeline
+- [x] **3.1.4** Integrate structured logging into existing pipeline (main process only)
   **Files to update:**
-  - [ ] `scripts/process_data.py` - Add performance milestone logging
-  - [ ] `src/processing/worker.py` - Add worker event logging
-  - [ ] `src/processing/pipeline.py` - Add operation tracing
-  - [ ] `src/utils/monitoring.py` - Add resource logging integration
+  - [x] `scripts/process_data.py` - Add performance milestone logging (start/end, throughput)
+  - [ ] `src/processing/worker.py` - Add worker event logging (Deferred)
+  - [ ] `src/processing/pipeline.py` - Add operation tracing (Deferred)
+  - [ ] `src/utils/monitoring.py` - Add resource logging integration (existing resource JSON retained)
 
-- [ ] **3.1.5** Implement real-time metrics collection
+- [ ] **3.1.5** Implement real-time metrics collection (Deferred)
   **Target:** Create `src/utils/metrics_collector.py`
   ```python
   class MetricsCollector:
@@ -104,7 +113,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
           """Export metrics in Prometheus/monitoring format"""
   ```
 
-- [ ] **3.1.6** Add configurable logging levels and outputs
+- [x] **3.1.6** Add configurable logging levels and outputs (added to production config template)
   **Update config/config.yaml:**
   ```yaml
   observability:
@@ -121,8 +130,8 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
       metrics_export_interval: 30     # seconds
   ```
 
-- [ ] **3.1.7** Test production logging system
- - [ ] **3.1.7** Test production logging system
+- [x] **3.1.7** Test production logging system (basic JSONL emission verified)
+ - [x] **3.1.7** Test production logging system
   ```bash
   # Run with production logging enabled
   poetry run python scripts/process_data.py --config config/config.yaml
@@ -139,11 +148,11 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
   - Log file size: _____ MB (reasonable for processing)
   ```
 
-### Task 3.2: Performance Profiling & Advanced Tuning (3-4 hours)
+### Task 3.2: Performance Profiling & Advanced Tuning (Deferred)
 **Objective:** Identify remaining bottlenecks and implement micro-optimizations
 
 #### Subtasks:
-- [ ] **3.2.1** Implement comprehensive performance profiling
+- [ ] **3.2.1** Implement comprehensive performance profiling (Deferred)
   **Target:** Create `src/utils/performance_profiler.py`
   ```python
   import cProfile
@@ -169,7 +178,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
           """Generate specific recommendations based on profiling"""
   ```
 
-- [ ] **3.2.2** Profile current optimized pipeline
+- [ ] **3.2.2** Profile current optimized pipeline (Deferred)
   ```bash
   # Enable detailed profiling in config
   # observability.performance_profiling: true
@@ -194,7 +203,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
     2. _____ (_____ ms average)
   ```
 
-- [ ] **3.2.3** Implement micro-optimizations based on profiling
+- [ ] **3.2.3** Implement micro-optimizations based on profiling (Deferred)
   **Common optimization areas:**
   - [ ] **Tensor Operations:** Optimize tensor creation and manipulation
     ```python
@@ -217,7 +226,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
     # Use memory mapping for large datasets
     ```
 
-- [ ] **3.2.4** Implement advanced caching strategies
+- [ ] **3.2.4** Implement advanced caching strategies (Deferred)
   **Target:** Create `src/utils/smart_cache.py`
   ```python
   class SmartCache:
@@ -234,12 +243,12 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
           """Smart cache eviction under memory pressure"""
   ```
 
-- [ ] **3.2.5** Optimize thread and process management
+- [ ] **3.2.5** Optimize thread and process management (Deferred)
   - [ ] **Thread Pool Optimization:** Fine-tune I/O thread pool sizes
   - [ ] **Process Affinity:** Pin workers to specific CPU cores if beneficial
   - [ ] **NUMA Optimization:** Optimize memory allocation for multi-socket systems (if applicable)
 
-- [ ] **3.2.6** Validate micro-optimizations
+- [ ] **3.2.6** Validate micro-optimizations (Deferred)
   ```bash
   poetry run python scripts/process_data.py --config config/config.yaml
   ```
@@ -256,7 +265,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
 **Objective:** Validate system stability under production conditions
 
 #### Subtasks:
-- [ ] **3.3.1** Implement stress testing framework
+- [x] **3.3.1** Implement stress testing framework
   **Target:** Create `src/utils/stress_tester.py`
   ```python
   class StressTester:
@@ -279,7 +288,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
           """Test sustained processing for extended periods"""
   ```
 
-- [ ] **3.3.2** Run large dataset stress test
+- [ ] **3.3.2** Run large dataset stress test (to be executed after implementation)
   ```bash
   # Create or use large test dataset (10K+ images)
   poetry run python -c "
@@ -299,7 +308,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
   - System stability: _____ (Excellent/Good/Issues)
   ```
 
-- [ ] **3.3.3** Test memory pressure scenarios
+- [ ] **3.3.3** Test memory pressure scenarios (to be executed after implementation)
   ```bash
   # Test with artificially constrained memory
   poetry run python -c "
@@ -317,13 +326,13 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
   - Recovery behavior: _____ (Automatic/Manual/Failed)
   ```
 
-- [ ] **3.3.4** Validate error recovery mechanisms
+- [ ] **3.3.4** Validate error recovery mechanisms (to be executed after implementation)
   - [ ] **Corrupted Image Handling:** Test with intentionally corrupted images
   - [ ] **Network Interruption:** Test I/O error handling
   - [ ] **GPU Memory Errors:** Test MPS error recovery and CPU fallback
   - [ ] **Worker Crash Recovery:** Test worker failure and replacement
 
-- [ ] **3.3.5** Performance consistency validation
+- [ ] **3.3.5** Performance consistency validation (to be executed after implementation)
   ```bash
   # Run multiple identical tests to check consistency
   for i in {1..5}; do
@@ -347,7 +356,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
 **Objective:** Prepare system for production deployment
 
 #### Subtasks:
-- [ ] **3.4.1** Create production configuration template
+- [x] **3.4.1** Create production configuration template
   **Target:** Create `config/production.yaml`
   ```yaml
   # Production-optimized configuration
@@ -386,7 +395,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
       memory_threshold: 85
   ```
 
-- [ ] **3.4.2** Create production deployment guide
+- [x] **3.4.2** Create production deployment guide
   **Target:** Create `docs/production_deployment.md`
   - [ ] Hardware requirements and recommendations
   - [ ] Environment setup instructions
@@ -394,7 +403,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
   - [ ] Monitoring and alerting setup
   - [ ] Troubleshooting guide
 
-- [ ] **3.4.3** Implement health check endpoints
+- [x] **3.4.3** Implement health check endpoints (skeleton)
   **Target:** Create `src/utils/health_checker.py`
   ```python
   class HealthChecker:
@@ -417,7 +426,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
           """Quick performance benchmark for deployment validation"""
   ```
 
-- [ ] **3.4.4** Create production monitoring dashboard data
+- [x] **3.4.4** Create production monitoring dashboard data
   **Target:** Generate monitoring dashboard configuration
   ```json
   {
@@ -436,7 +445,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
 **Objective:** Complete Phase 3 and document production readiness
 
 #### Subtasks:
-- [ ] **3.5.1** Run final end-to-end validation
+- [ ] **3.5.1** Run final end-to-end validation (to be executed after implementation)
   ```bash
   # Use production configuration
   poetry run python scripts/process_data.py --config config/production.yaml
@@ -466,7 +475,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
   - [ ] Production monitoring operational
   ```
 
-- [ ] **3.5.2** Generate comprehensive optimization report
+- [x] **3.5.2** Generate comprehensive optimization report (skeleton)
   **Target:** Create `docs/optimization_completion_report.md`
   - [ ] Executive summary of all optimizations
   - [ ] Performance improvement breakdown by phase
@@ -474,7 +483,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
   - [ ] Production deployment recommendations
   - [ ] Future optimization opportunities
 
-- [ ] **3.5.3** Create git checkpoint for Phase 3 completion
+- [ ] **3.5.3** Create git checkpoint for Phase 3 completion (after validation)
   ```bash
   git add .
   git commit -m "Complete Phase 3: Production excellence
@@ -498,7 +507,7 @@ Note: Any remaining micro-optimizations deferred from Phase 1 (e.g., index pre-c
   git tag production-ready
   ```
 
-- [ ] **3.5.4** Prepare handoff documentation
+- [x] **3.5.4** Prepare handoff documentation (template in completion report and deployment guide)
   ```
   OPTIMIZATION PROJECT COMPLETION:
   

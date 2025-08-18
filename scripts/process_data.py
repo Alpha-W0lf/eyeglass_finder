@@ -40,6 +40,7 @@ from src.utils.logging_setup import setup_logging, get_logger
 from src.modeling.model_loader import load_glasses_classifiers, load_face_detector
 from src.utils.monitoring import ResourceMonitor
 from src.utils.memory_manager import MemoryPoolManager
+from src.utils.production_logger import ProductionLogger
 
 
 def get_git_commit_hash() -> str:
@@ -101,6 +102,9 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
     high_face_images_all = []
     
     try:
+        run_start_ts = time.perf_counter()
+        prod_logger = ProductionLogger(Path(config.paths.output_dir) / "logs" / "production.jsonl")
+        prod_logger.log_processing_milestone("run_start", images_processed=0, elapsed_seconds=0.0, config_snapshot=metrics.config_snapshot)
         futures = {}
         submitted = 0
         completed = 0
@@ -133,7 +137,7 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
             while futures:
                 # Wait for any future to complete
                 for future in as_completed(list(futures.keys()), timeout=None):
-                    start_ts = futures.pop(future, None)
+                    fut_start_ts = futures.pop(future, None)
                     try:
                         num_processed, num_faces, faces, diags, high_face_images, detect_time_s, classify_time_s = future.result()
                         total_worker_input_images += num_processed
@@ -144,8 +148,8 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
                             high_face_images_all.extend(high_face_images)
                         metrics.total_detection_time_seconds += float(detect_time_s)
                         metrics.total_classification_time_seconds += float(classify_time_s)
-                        if start_ts is not None:
-                            duration = time.perf_counter() - start_ts
+                        if fut_start_ts is not None:
+                            duration = time.perf_counter() - fut_start_ts
                             metrics.worker_processing_times.append(duration)
                     except Exception as e:
                         logger.error(f"A worker process failed: {e}", exc_info=True)
@@ -155,6 +159,14 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
                         # Progress by number of images processed in this future
                         pbar.update(max(0, int(num_processed)))
                         completed += 1
+                        # Emit lightweight progress snapshot
+                        prod_logger.log_event(
+                            "progress_snapshot",
+                            level="INFO",
+                            submitted=submitted,
+                            completed=completed,
+                            total_images_processed=total_worker_input_images,
+                        )
 
                     # After consuming one, try to keep window filled
                     try:
@@ -179,6 +191,13 @@ def process_images(config: AppConfig, logger, metrics: MetricsManager):
         logger.info("Main process is shutting down. Waiting for workers to terminate...")
         executor.shutdown(wait=True, cancel_futures=True)
         logger.info("All worker processes have been terminated.")
+        try:
+            # Finalize production log
+            elapsed = time.perf_counter() - run_start_ts
+            ips = (total_worker_input_images / elapsed) if elapsed > 0 else 0.0
+            prod_logger.log_processing_milestone("run_end", images_processed=total_worker_input_images, elapsed_seconds=elapsed, images_per_second=ips)
+        except Exception:
+            pass
 
     logger.info(f"--- Phase 1: Artifact Generation Summary ---")
     logger.info(f"Total images processed: {total_images_processed}")
@@ -390,6 +409,19 @@ def main():
     config.paths.output_dir = str(output_root)
     config.run_id = run_id
     setattr(config.paths, 'logs_dir', str(logs_dir))
+
+    # Set observability flags for downstream modules
+    try:
+        os.environ["ENABLE_MEMORY_PROFILING"] = "1" if bool(getattr(config.observability, "memory_profiling", False)) else "0"
+    except Exception:
+        os.environ["ENABLE_MEMORY_PROFILING"] = "0"
+    try:
+        detailed = bool(getattr(config.observability, "detailed_metrics", False))
+        os.environ["ENABLE_VERBOSE_LOADER"] = "1" if detailed else "0"
+        os.environ["ENABLE_VERBOSE_WORKER"] = "1" if detailed else "0"
+    except Exception:
+        os.environ["ENABLE_VERBOSE_LOADER"] = "0"
+        os.environ["ENABLE_VERBOSE_WORKER"] = "0"
 
     setup_logging(log_level="INFO", log_file=logs_dir / "run.log")
     logger = get_logger()

@@ -23,12 +23,18 @@ import os
 
 
 def log_memory_usage(stage: str):
-    """Logs the current memory usage of the process."""
-    process = psutil.Process(os.getpid())
-    mem_info = process.memory_info()
-    logger.info(
-        f"MEMORY_PROFILE ({os.getpid()}): Stage: {stage} - RSS: {mem_info.rss / 1024**2:.2f} MB"
-    )
+    """Logs the current memory usage of the process (guarded by ENABLE_MEMORY_PROFILING)."""
+    if os.environ.get("ENABLE_MEMORY_PROFILING", "0") != "1":
+        return
+    try:
+        process = psutil.Process(os.getpid())
+        mem_info = process.memory_info()
+        logger.info(
+            f"MEMORY_PROFILE ({os.getpid()}): Stage: {stage} - RSS: {mem_info.rss / 1024**2:.2f} MB"
+        )
+    except Exception:
+        # Best-effort logging only
+        pass
 
 
 @dataclass

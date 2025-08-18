@@ -1,0 +1,79 @@
+paths:
+  input_dir: data/raw
+  output_dir: outputs
+  output_filename: filtered_dataset.parquet
+
+data_processing:
+  file_pattern: train-*.parquet
+  chunk_size: 512
+
+execution:
+  num_workers: 12
+  diagnostic_serial_mode: false
+  inference_batch_size: 64
+
+logging:
+  level: INFO
+  format: "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+
+report_generation:
+  qualitative_analysis_sample_size: 20
+
+hardware:
+  max_workers: 10
+  use_mps_acceleration: true
+  worker_memory_limit_mb: 1500
+  device_override: null
+
+performance:
+  prefetch_chunks: 4
+  gc_frequency: 10
+  thread_pool_workers: 4
+  batch_optimization: true
+  inference_batch_size: 64
+  face_classification_batch_size: 16
+  max_batch_accumulation_time: 100
+  rampup_enabled: true
+  rampup_warmup_chunks: 4
+  rampup_initial_prefetch_chunks: 1
+  rampup_initial_chunk_size_override: 192
+  rampup_stagger_worker_submissions_ms: 100
+
+observability:
+  detailed_metrics: false
+  memory_profiling: false
+  benchmark_mode: true
+  logging:
+    level: INFO
+    format: json
+    enable_distributed_tracing: false
+    log_performance_metrics: true
+    log_worker_events: false
+  metrics:
+    enable_real_time_collection: false
+    metrics_export_interval: 30
+  performance_alerts:
+    min_throughput: 90.0
+    cpu_threshold: 90
+    memory_threshold: 85
+
+model_params:
+  face_detection:
+    model_path: models/yolov8n-face-lindevs.pt
+    min_face_size: 100
+    min_confidence: 0.75
+    keep_all: false
+    target_size: [224, 224]
+  classification:
+    present_label: present
+    output_image_format: JPEG
+    eyewear_prob_threshold: 0.65
+
+sampling:
+  square_crop: true
+  crop_margin: 0.20
+  clamp_to_image: true
+  pad_mode: null
+  apply_to_classifier: false
+
+

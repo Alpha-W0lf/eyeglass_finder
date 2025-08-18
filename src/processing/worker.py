@@ -40,11 +40,17 @@ g_worker_config: AppConfig = None
 
 def _log_worker_memory_usage(stage: str):
     """Logs the current memory usage of the worker process."""
-    process = psutil.Process(os.getpid())
-    mem_info = process.memory_info()
-    logger.info(
-        f"WORKER_MEMORY_PROFILE ({os.getpid()}): Stage: {stage} - RSS: {mem_info.rss / 1024**2:.2f} MB"
-    )
+    import os as _os
+    if _os.environ.get("ENABLE_MEMORY_PROFILING", "0") != "1":
+        return
+    try:
+        process = psutil.Process(os.getpid())
+        mem_info = process.memory_info()
+        logger.info(
+            f"WORKER_MEMORY_PROFILE ({os.getpid()}): Stage: {stage} - RSS: {mem_info.rss / 1024**2:.2f} MB"
+        )
+    except Exception:
+        pass
 
 
 def initialize_worker(config_dict: dict):
@@ -94,7 +100,14 @@ def process_chunk_of_data(image_df: pd.DataFrame) -> Tuple[int, int, List[Dict],
     chunk_id = f"Worker-{os.getpid()}"
     num_images = len(image_df)
     _log_worker_memory_usage(f"Chunk Start")
-    logger.info(f"WORKER_START: Worker {os.getpid()} received a chunk of {num_images} rows.")
+    try:
+        import os as _os
+        if _os.environ.get("ENABLE_VERBOSE_WORKER", "0") == "1":
+            logger.info(f"WORKER_START: Worker {os.getpid()} received a chunk of {num_images} rows.")
+        else:
+            logger.debug(f"WORKER_START: Worker {os.getpid()} received a chunk of {num_images} rows.")
+    except Exception:
+        logger.debug(f"WORKER_START: Worker {os.getpid()} received a chunk of {num_images} rows.")
 
     try:
         # The core processing logic is delegated to the pipeline module.
