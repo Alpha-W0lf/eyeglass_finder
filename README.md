@@ -86,8 +86,8 @@ This project emphasizes not only the functional outcome but also the engineering
 -   **Production-Grade Architecture:** Employs a modular two-stage pipeline that decouples expensive model inference from lightweight reporting. This enhances flexibility, simplifies debugging, and allows for rapid iteration on filtering logic and analytics without re-running the entire process.
 -   **Deep Observability & Rich Reporting:** Every run is treated as a reproducible experiment, generating a unique, timestamped output directory. Artifacts include a detailed Markdown report with performance analytics, system resource utilization plots (CPU, Memory, Disk I/O), worker efficiency histograms, and structured JSON logs for production monitoring.
 -   **Advanced Qualitative Analysis:** Generates extensive qualitative samples to validate model behavior, including final targets, false negative candidates, and images with high face counts. Samples are presented in browsable HTML galleries with embedded metadata like confidence scores. See the latest results here:
-    -   **[Final Targets Gallery](./docs/latest_run_showcase/qualitative_analysis/final_targets/index.html)**
-    -   **[False Negative Candidates Gallery](./docs/latest_run_showcase/qualitative_analysis/false_negative_candidates/index.html)**
+    -   **[Final Targets Gallery](https://alpha-w0lf.github.io/eyeglass_finder/docs/latest_run_showcase/qualitative_analysis/final_targets/index.html)**
+    -   **[False Negative Candidates Gallery](https://alpha-w0lf.github.io/eyeglass_finder/docs/latest_run_showcase/qualitative_analysis/false_negative_candidates/index.html)**
 -   **Intelligent Memory Management:** Includes a dynamic `MemoryManager` that monitors memory pressure in real-time, automatically throttling data prefetching and triggering garbage collection to ensure stability during high-load processing, even with 10+ parallel workers.
 -   **Robust & Reproducible Environments:** Offers two execution paths to fit the need: a high-performance native Poetry environment for development and a fully containerized Docker environment that guarantees perfect, one-command reproducibility for cross-platform validation.
 -   **Designed for Scale:** The single-machine architecture is built with a clear, documented roadmap for evolving into a distributed, asynchronous microservices system capable of processing billions of images.
@@ -97,28 +97,27 @@ This project emphasizes not only the functional outcome but also the engineering
 The pipeline follows a decoupled, two-stage process designed for enhanced observability, flexibility, and easier debugging.
 
 ```mermaid
-graph TD
+graph LR
     subgraph "Stage 1: Process & Enrich"
-        A[Input Parquet Files] --> B{Stream Loader};
-        B --> C[Image Chunks];
-        C --> D{Parallel Workers};
-    end
+        direction TD
+        A[Input Data] --> B{Data Loader};
+        B --> C{Parallel Workers};
+        
+        subgraph "Worker Logic"
+            D[Batch Images] --> E[Face Detect] --> F[Crop Faces] --> G[Classify];
+        end
 
-    subgraph "Worker Process"
-        D --> E[Batch Images];
-        E --> F[YOLOv8 Face Detection];
-        F --> G[Crop Faces];
-        G --> H[Eyeglass Classification];
+        C ==> D;
     end
 
     subgraph "Stage 2: Filter & Report"
-        I[Intermediate Parquet] --> J{Artifact Generator};
-        J --> K[Final Filtered Dataset];
-        J --> L[report.md];
-        J --> M[Visualizations & Samples];
+        direction TD
+        I[Intermediate Data] --> J{Artifact Generator};
+        J --> K[Final Dataset];
+        J --> L[Report & Visuals];
     end
 
-    H --> I;
+    G --> I;
 ```
 
 1.  **Stage 1 (`process_data.py`):** This script is responsible for the heavy lifting. It processes all input images, runs the expensive face detection and classification models, and saves all detected faces—regardless of whether they meet the target criteria—into a single, rich intermediate Parquet file. It also captures detailed metadata and performance metrics for the run.
