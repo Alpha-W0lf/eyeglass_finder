@@ -28,9 +28,8 @@ The plot below visualizes this challenge, showing that the vast majority of imag
 A decoupled, two-stage process was engineered for maximum performance, flexibility, and observability. This architecture separates the computationally expensive model inference from the lightweight filtering and reporting, allowing for rapid iteration on analytics without re-running the entire process.
 
 ```mermaid
-graph LR
+graph TD
     subgraph "Stage 1: Process & Enrich"
-        direction TD
         A[Input Data] --> B{Data Loader};
         B --> C{Parallel Workers};
         
@@ -42,7 +41,6 @@ graph LR
     end
 
     subgraph "Stage 2: Filter & Report"
-        direction TD
         I[Intermediate Data] --> J{Artifact Generator};
         J --> K[Final Dataset];
         J --> L[Report & Visuals];
