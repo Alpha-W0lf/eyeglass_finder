@@ -67,7 +67,12 @@ def initialize_pipeline_worker(config_dict: Dict):
         )
         log_memory_usage(f"Worker {os.getpid()}: After loading FaceDetector model.")
 
-        g_glasses_classifier = GlassesClassifier(device=device_any)
+        # Choose classifier kind based on config (default eyeglasses)
+        try:
+            clf_kind = getattr(g_config.model_params.classification, "kind", "eyeglasses")
+        except Exception:
+            clf_kind = "eyeglasses"
+        g_glasses_classifier = GlassesClassifier(kind=str(clf_kind), device=device_any)
         g_glasses_classifier.model.eval()
         log_memory_usage(f"Worker {os.getpid()}: After loading GlassesClassifier model.")
         # Initialize batch wrapper

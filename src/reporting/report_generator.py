@@ -23,6 +23,11 @@ def generate_report(metrics: MetricsManager, output_path: Path):
     global_max = getattr(metrics, "global_max_faces_in_single_image", None)
     max_faces_effective = global_max if isinstance(global_max, int) and global_max > 0 else metrics.max_faces_in_single_image
 
+    # Conditionally show sunglasses rows/links
+    cfg = metrics.config_snapshot
+    cls_cfg = cfg.get("model_params", {}).get("classification", {}) if isinstance(cfg, dict) else {}
+    sunglasses_enabled = bool(cls_cfg.get("enable_sunglasses_rejection", False))
+
     report_content = f"""
 # Pipeline Run Report: {metrics.run_id}
 
@@ -66,7 +71,7 @@ def generate_report(metrics: MetricsManager, output_path: Path):
 | Faces > Size Threshold              | {metrics.faces_above_size_threshold} |
 | Faces Classified                    | {metrics.faces_classified} |
 | Faces with Eyeglasses (Predicted)   | {metrics.faces_with_eyeglasses} |
-| Faces Rejected as Sunglasses        | {metrics.faces_rejected_as_sunglasses} |
+| Faces Rejected as Sunglasses        | {metrics.faces_rejected_as_sunglasses if sunglasses_enabled else 'N/A'} |
 | **Final Target Faces**              | **{metrics.final_target_count}** |
 
 ### 3.1. Face Detection Diagnostics
@@ -115,9 +120,7 @@ This plot shows the distribution of how many faces were detected per image. The 
 
 [Open Index](./{qual_dir_name}/final_targets/index.html)
 
-**Rejected Sunglasses (Sample)**: A sample of faces that were rejected because the model predicted they were wearing sunglasses. This is a key area for failure analysis.
-
-[Open Index](./{qual_dir_name}/rejected_as_sunglasses/index.html)
+{('**Rejected Sunglasses (Sample)**: A sample of faces that were rejected because the model predicted they were wearing sunglasses. This is a key area for failure analysis.\n\n[Open Index](./' + qual_dir_name + '/rejected_as_sunglasses/index.html)') if sunglasses_enabled else '*Sunglasses rejection disabled in this run.*'}
 
 **False-Negative Candidates (Sample)**: Large faces above the size threshold that were classified as non-target. Manually inspect to spot missed eyeglasses.
 

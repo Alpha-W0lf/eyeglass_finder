@@ -67,7 +67,10 @@ model_params:
   classification:
     present_label: present
     output_image_format: JPEG
-    eyewear_prob_threshold: 0.65
+    eyewear_prob_threshold: 0.90
+    kind: eyeglasses
+    enable_sunglasses_rejection: false
+    sunglasses_prob_threshold: 0.65
 
 sampling:
   square_crop: true

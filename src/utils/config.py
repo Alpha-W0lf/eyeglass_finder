@@ -36,6 +36,10 @@ class ClassificationConfig:
     present_label: str
     output_image_format: str
     eyewear_prob_threshold: float = 0.5
+    # New: specialize classifier kind and sunglasses gating
+    kind: str = "eyeglasses"  # values: anyglasses | eyeglasses | sunglasses | shadows
+    enable_sunglasses_rejection: bool = False
+    sunglasses_prob_threshold: float = 0.65
 
 
 @dataclass

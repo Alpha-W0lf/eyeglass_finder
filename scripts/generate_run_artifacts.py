@@ -64,6 +64,8 @@ def create_qualitative_samples(df: pd.DataFrame, output_dir: Path, config: AppCo
                 "image_url": row.get("image_url", None),
                 "source_file": row.get("source_file", None),
             })
+        # Sort by eyeglasses probability descending for consistent display order
+        records.sort(key=lambda r: r["eyeglasses_proba"], reverse=True)
         # Assign filenames consistently (must match actual saved files)
         for rec in records:
             rec["filename"] = f"{kind_label}_{rec['image_id']}_clf{rec['eyeglasses_proba']:.2f}_det{rec['detector_conf']:.2f}.jpg"
@@ -97,49 +99,80 @@ def create_qualitative_samples(df: pd.DataFrame, output_dir: Path, config: AppCo
 
     target_df = df[df["is_target"] == True]
     if not target_df.empty:
-        target_sample = target_df.sample(n=min(sample_size, len(target_df)))
-        for idx, row in target_sample.iterrows():
-            img_bytes = row["cropped_face_jpeg"]
+        # Choose probability column for ranking
+        proba_col = "has_eyewear_confidence" if "has_eyewear_confidence" in target_df.columns else ("glasses_confidence" if "glasses_confidence" in target_df.columns else None)
+        if proba_col is not None:
+            ranked_targets = target_df.sort_values(by=proba_col, ascending=False, na_position='last')
+        else:
+            ranked_targets = target_df
+        # Save ALL final targets, sorted by eyewear probability desc
+        saved = 0
+        for idx, row in ranked_targets.iterrows():
+            img_bytes = row.get("cropped_face_jpeg")
+            if not img_bytes:
+                continue
             fname = f"target_{idx}_clf{float(row.get('has_eyewear_confidence', row.get('glasses_confidence', 0.0)) or 0.0):.2f}_det{float(row.get('face_score', 0.0) or 0.0):.2f}.jpg"
             with open(final_targets_dir / fname, "wb") as f:
                 f.write(img_bytes)
-        logger.info(f"Saved {len(target_sample)} final target samples.")
-        _write_metadata_and_index(target_sample, final_targets_dir, "target")
+            saved += 1
+        logger.info(f"Saved {saved} final target images.")
+        _write_metadata_and_index(ranked_targets, final_targets_dir, "target")
 
-    rejected_df = df[df["sunglasses_prediction"] == True]
-    if not rejected_df.empty:
-        rejected_sample = rejected_df.sample(n=min(sample_size, len(rejected_df)))
-        for idx, row in rejected_sample.iterrows():
-            img_bytes = row["cropped_face_jpeg"]
-            fname = f"rejected_{idx}_clf{float(row.get('has_eyewear_confidence', row.get('glasses_confidence', 0.0)) or 0.0):.2f}_det{float(row.get('face_score', 0.0) or 0.0):.2f}.jpg"
-            with open(rejected_sunglasses_dir / fname, "wb") as f:
-                f.write(img_bytes)
-        logger.info(f"Saved {len(rejected_sample)} rejected sunglasses samples.")
-        _write_metadata_and_index(rejected_sample, rejected_sunglasses_dir, "rejected")
-
-    # New: False-negative candidates — large faces above size threshold predicted as not target
+    # Optionally generate rejected sunglasses samples only if enabled and column exists
     try:
-        size_thr = int(config.model_params.face_detection.min_face_size)
-    except Exception:
-        size_thr = 0
-    try:
-        # faces considered by classifier but not selected as target
-        non_target_df = df[(df["is_target"] == False)]
-        # ensure face_size is present and large enough
-        large_non_target_df = non_target_df[non_target_df["face_size"].apply(lambda s: isinstance(s, (list, tuple)) and len(s) == 2 and (s[0] >= size_thr and s[1] >= size_thr))]
-        if not large_non_target_df.empty:
-            sample = large_non_target_df.sample(n=min(sample_size, len(large_non_target_df)))
-            for idx, row in sample.iterrows():
-                img_bytes = row.get("cropped_face_jpeg")
-                if not img_bytes:
-                    continue
-                fname = f"candidate_{idx}_clf{float(row.get('has_eyewear_confidence', row.get('glasses_confidence', 0.0)) or 0.0):.2f}_det{float(row.get('face_score', 0.0) or 0.0):.2f}.jpg"
-                with open(false_negative_candidates_dir / fname, "wb") as f:
-                    f.write(img_bytes)
-            logger.info(f"Saved {len(sample)} false-negative candidate samples.")
-            _write_metadata_and_index(sample, false_negative_candidates_dir, "candidate")
+        if getattr(config.model_params.classification, "enable_sunglasses_rejection", False) and "sunglasses_prediction" in df.columns:
+            rejected_df = df[df["sunglasses_prediction"] == True]
+            if not rejected_df.empty:
+                proba_col = "has_eyewear_confidence" if "has_eyewear_confidence" in rejected_df.columns else ("glasses_confidence" if "glasses_confidence" in rejected_df.columns else None)
+                if proba_col is not None:
+                    rejected_df = rejected_df.sort_values(by=proba_col, ascending=False, na_position='last')
+                rejected_sample = rejected_df.head(min(sample_size, len(rejected_df)))
+                for idx, row in rejected_sample.iterrows():
+                    img_bytes = row["cropped_face_jpeg"]
+                    fname = f"rejected_{idx}_clf{float(row.get('has_eyewear_confidence', row.get('glasses_confidence', 0.0)) or 0.0):.2f}_det{float(row.get('face_score', 0.0) or 0.0):.2f}.jpg"
+                    with open(rejected_sunglasses_dir / fname, "wb") as f:
+                        f.write(img_bytes)
+                logger.info(f"Saved {len(rejected_sample)} rejected sunglasses samples.")
+                _write_metadata_and_index(rejected_sample, rejected_sunglasses_dir, "rejected")
+            else:
+                logger.info("No sunglasses rejections to sample.")
         else:
-            logger.info("No large non-target faces to sample for false-negative candidates.")
+            logger.info("Sunglasses rejection disabled; skipping rejected_as_sunglasses samples.")
+    except Exception as e:
+        logger.warning(f"Failed generating rejected_sunglasses samples: {e}")
+
+    # Updated: False-negative candidates — top-N highest eyeglasses probability below threshold (most borderline rejects)
+    try:
+        try:
+            thr = float(config.model_params.classification.eyewear_prob_threshold)
+        except Exception:
+            thr = 0.5
+
+        # Choose probability column
+        proba_col = None
+        if "has_eyewear_confidence" in df.columns:
+            proba_col = "has_eyewear_confidence"
+        elif "glasses_confidence" in df.columns:
+            proba_col = "glasses_confidence"
+
+        if proba_col is not None and not df.empty:
+            candidates = df[(df["is_target"] == False) & (df[proba_col].notnull()) & (df[proba_col] < thr)]
+            ranked = candidates.sort_values(by=proba_col, ascending=False)
+            sample = ranked.head(sample_size)
+            if not sample.empty:
+                for idx, row in sample.iterrows():
+                    img_bytes = row.get("cropped_face_jpeg")
+                    if not img_bytes:
+                        continue
+                    fname = f"candidate_{idx}_clf{float(row.get(proba_col, 0.0) or 0.0):.2f}_det{float(row.get('face_score', 0.0) or 0.0):.2f}.jpg"
+                    with open(false_negative_candidates_dir / fname, "wb") as f:
+                        f.write(img_bytes)
+                logger.info(f"Saved {len(sample)} false-negative candidate samples (top-{min(sample_size, len(ranked))} below threshold {thr}).")
+                _write_metadata_and_index(sample, false_negative_candidates_dir, "candidate")
+            else:
+                logger.info("No non-target faces found below threshold to sample for false-negative candidates.")
+        else:
+            logger.info("No probability column found for false-negative ranking; skipping.")
     except Exception as e:
         logger.warning(f"Failed generating false-negative candidates: {e}")
 
