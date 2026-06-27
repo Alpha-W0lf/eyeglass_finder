@@ -94,4 +94,8 @@ For those interested in a deeper dive into the project's data, performance, and 
 - **[Latest Run Showcase](./docs/latest_run_showcase/report.md):** The full, detailed report from the most recent pipeline execution, including all performance metrics and visualizations.
 - **[Post-Project Analysis Report](./post_run_report.md):** A detailed summary of the multi-phase optimization journey, from the initial baseline to the final high-performance state.
 - **[Dataset Card](./dataset_card.md):** A formal summary of the output dataset, including schema, statistics, and run details, suitable for platforms like Hugging Face.
-- **[Detailed Technical README](./README_detailed_depricated.md):** The original, verbose README with full setup and operational instructions.
+- **[Detailed Technical README (legacy)](./README_detailed.md):** The original, verbose README with full setup and operational instructions.
+
+---
+
+*Last reviewed: June 2026 — pipeline and docs validated for public portfolio.*
