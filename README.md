@@ -1,6 +1,6 @@
-# Eyeglass Finder: A High-Throughput MLOps Pipeline
+# Eyeglass Finder
 
-This project is a case study in engineering a production-grade, high-performance data pipeline to solve a challenging "needle-in-a-haystack" computer vision task. The system processes a vast, noisy image dataset to find rare instances of a specific feature: faces with eyeglasses.
+Finding needles in a privacy-scrubbed haystack — a high-throughput **MLOps / computer-vision** pipeline that finds rare faces with eyeglasses in a vast, noisy dataset.
 
 | | | |
 |:---:|:---:|:---:|
