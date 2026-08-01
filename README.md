@@ -2,6 +2,8 @@
 
 Finding needles in a privacy-scrubbed haystack — a high-throughput **MLOps / computer-vision** pipeline that finds rare faces with eyeglasses in a vast, noisy dataset.
 
+Case study in production-minded CV/MLOps under hard, privacy-scrubbed data constraints.
+
 | | | |
 |:---:|:---:|:---:|
 | ![Target 1](docs/latest_run_showcase/qualitative_analysis/final_targets/target_1153_clf1.00_det0.91.jpg) | ![Target 2](docs/latest_run_showcase/qualitative_analysis/final_targets/target_180_clf1.00_det0.90.jpg) | ![Target 3](docs/latest_run_showcase/qualitative_analysis/final_targets/target_731_clf1.00_det0.92.jpg) |
@@ -9,9 +11,22 @@ Finding needles in a privacy-scrubbed haystack — a high-throughput **MLOps / c
 
 ---
 
-| 🚀 **17.09x Performance Increase** | 🏛️ **Production-Grade Architecture** | 🔬 **Deep Observability & Analytics** |
+### Results
+
+| ~17× throughput | Architecture | Observability |
 | :---: | :---: | :---: |
-| Systematically optimized from a **9.8 images/sec** Docker baseline to over **167.5 images/sec** on native hardware—an order-of-magnitude speedup achieved through GPU acceleration, memory tuning, and advanced batching. | A decoupled, two-stage pipeline designed for scalability and maintainability. It automatically detects and leverages the best available hardware (NVIDIA CUDA, Apple MPS, or CPU) for optimal performance on any machine. | Every run generates a rich suite of artifacts, including detailed performance reports, system utilization plots, and extensive qualitative samples presented in browsable HTML galleries for deep model validation. |
+| Optimized from **9.8 images/sec** (Docker baseline) to **~167.5 images/sec** on native hardware via GPU acceleration, memory tuning, and batching. | Decoupled two-stage pipeline (detect → classify) with automatic hardware selection (CUDA, Apple MPS, or CPU). | Rich run artifacts: performance reports, system plots, and browsable HTML galleries for qualitative QA. |
+
+### Quick start
+
+```bash
+poetry install
+poetry run python scripts/process_data.py --config config/production.yaml
+# Or Docker:
+GIT_COMMIT_HASH=$(git rev-parse HEAD) docker compose build && docker compose run --rm app
+```
+
+Full setup, configs, and ops: [`README_detailed.md`](README_detailed.md).
 
 ---
 
@@ -70,7 +85,7 @@ This project showcases several senior-level engineering principles that prioriti
 
 The pipeline successfully identifies a wide variety of eyeglasses across different face sizes, lighting conditions, and angles.
 
-**➡️ View the full, browsable galleries from the latest run:**
+**View the full, browsable galleries from the latest run:**
 - **[Final Targets Gallery](https://alpha-w0lf.github.io/eyeglass_finder/docs/latest_run_showcase/qualitative_analysis/final_targets/index.html)**
 - **[False Negative Candidates Gallery](https://alpha-w0lf.github.io/eyeglass_finder/docs/latest_run_showcase/qualitative_analysis/false_negative_candidates/index.html)**
 
@@ -87,15 +102,15 @@ The pipeline successfully identifies a wide variety of eyeglasses across differe
 
 ---
 
-### Project Documentation & Artifacts
+### Docs
 
-For those interested in a deeper dive into the project's data, performance, and engineering process, the following documents provide comprehensive details:
+| Doc | Purpose |
+|-----|---------|
+| [Latest Run Showcase](./docs/latest_run_showcase/report.md) | Full report from the most recent pipeline run |
+| [Post-Project Analysis](./post_run_report.md) | Optimization journey from baseline to high performance |
+| [Dataset Card](./dataset_card.md) | Output schema, statistics, run details |
+| [Detailed Technical README](./README_detailed.md) | Full setup and operational instructions |
 
-- **[Latest Run Showcase](./docs/latest_run_showcase/report.md):** The full, detailed report from the most recent pipeline execution, including all performance metrics and visualizations.
-- **[Post-Project Analysis Report](./post_run_report.md):** A detailed summary of the multi-phase optimization journey, from the initial baseline to the final high-performance state.
-- **[Dataset Card](./dataset_card.md):** A formal summary of the output dataset, including schema, statistics, and run details, suitable for platforms like Hugging Face.
-- **[Detailed Technical README (legacy)](./README_detailed.md):** The original, verbose README with full setup and operational instructions.
+Building similar high-throughput MLOps pipelines? Reach me on [LinkedIn](https://www.linkedin.com/in/tchacko1/).
 
----
-
-*Last reviewed: June 2026 — pipeline and docs validated for public portfolio.*
+*Last reviewed: 2026-07-31 — sales-first portfolio README pass.*
