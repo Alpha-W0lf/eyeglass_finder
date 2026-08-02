@@ -2,7 +2,7 @@
 # Pipeline Run Report: run_2025-08-17_20-18-29
 
 ## 1. Run Summary
-- **Git Commit Hash:** `unknown`
+- **Git Commit Hash:** `unknown` *(not recorded at run time — do not invent a hash; reproducibility for this showcase is via run id `run_2025-08-17_20-18-29` + committed artifacts under `docs/latest_run_showcase/`)*
 - **Run Command:** `scripts/process_data.py --config config/production.yaml`
 - **Environment:**
 ```json

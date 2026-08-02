@@ -113,4 +113,6 @@ The pipeline successfully identifies a wide variety of eyeglasses across differe
 
 Building similar high-throughput MLOps pipelines? Reach me on [LinkedIn](https://www.linkedin.com/in/tchacko1/).
 
-*Last reviewed: 2026-07-31 — sales-first portfolio README pass.*
+**License:** Personal Use — see [`LICENSE`](LICENSE) (not OSI open source / not MIT).
+
+*Last reviewed: 2026-08-02.*

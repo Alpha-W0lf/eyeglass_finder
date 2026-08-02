@@ -447,7 +447,7 @@ The pipeline automatically identifies and analyzes face detection patterns:
 This comprehensive diagnostic framework transforms each pipeline run into a rich source of insights, supporting both immediate quality evaluation and long-term iterative improvement of the face detection and classification models.
 
 ## Scaling and Extensibility
-This project was intentionally designed as a robust foundation that can be evolved into a production-grade, web-scale system. A detailed strategy for this evolution is documented in the **[Production Roadmap](./production_roadmap.md)**. The roadmap outlines a multi-phase plan that goes beyond simply scaling the architecture and addresses the key pillars of enterprise-ready MLOps, including:
+This project was intentionally designed as a robust foundation that can be evolved into a production-grade, web-scale system. A detailed strategy for this evolution is documented in the **[Production Deployment notes](./docs/production_deployment.md)** and **[Roadmap](./docs/roadmap.md)**. Those notes outline a multi-phase plan that goes beyond simply scaling the architecture and addresses the key pillars of enterprise-ready MLOps, including:
 
 -   **Advanced Observability:** Monitoring for data drift and implementing model explainability.
 -   **Model & Data Governance:** Using model and schema registries to ensure reproducibility and prevent pipeline failures.
