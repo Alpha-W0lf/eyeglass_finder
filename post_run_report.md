@@ -26,7 +26,7 @@ The system uses a decoupled, two-stage process for maximum flexibility and obser
 
 This design allows for rapid iteration on analytics and filtering logic without re-running the expensive model inference stage, a significant advantage in any data-centric environment.
 
-> For a visual representation and more detailed breakdown of the architectural rationale, please see the **[High-Level Architecture](./README.md#high-level-architecture)** section in the main project `README.md`.
+> For a visual representation and more detailed breakdown of the architectural rationale, please see the **[High-Level Architecture](./README_detailed.md#high-level-architecture)** section in `README_detailed.md`.
 
 ### 2.2. Technology Stack
 
@@ -53,13 +53,9 @@ The engineering choices made throughout this project were deliberate, prioritizi
 
 ### 3.1. Final System Architecture
 
-The pipeline was architected as a decoupled, two-stage process:
-1.  **Stage 1 (`process_data.py`):** Handles the computationally expensive tasks of face detection and classification, generating a rich intermediate dataset of all potential candidates.
-2.  **Stage 2 (`generate_run_artifacts.py`):** Consumes the intermediate data to perform lightweight filtering and generate the final dataset, reports, and visualizations.
+See **§2.1** above for the canonical two-stage design (this section previously duplicated that narrative).
 
-This design was chosen for its flexibility and observability. It allows for the rapid iteration of reporting and filtering logic without needing to re-run the expensive model inference stage, which is a significant advantage in a research environment.
-
-> For a more detailed breakdown of the architectural rationale, please see the **[High-Level Architecture](./README.md#high-level-architecture)** section in the main project `README.md`.
+> Architecture deep-dive: **[High-Level Architecture](./README_detailed.md#high-level-architecture)** in `README_detailed.md`.
 
 ### 3.2. Technology Stack & Rationale
 
@@ -127,13 +123,13 @@ This section addresses the project's outcomes and potential improvements related
 
 ### 4.1. Analysis of the `wikimedia/wit_base` Dataset: A "Needle in a Haystack" Challenge
 
-The `wikimedia/wit_base` dataset provided a fascinating and realistic test case. Its vast, uncurated nature presented a classic "needle in a haystack" problem, a challenge compounded by the fact that the dataset's creators had already removed images with prominent faces for privacy reasons. Our task was therefore to find the subtle signals that remained. The pipeline's ability to process **39,258** images to successfully identify just **67** target faces (~0.17% success rate) is a testament to its precision.
+The `wikimedia/wit_base` dataset provided a fascinating and realistic test case. Its vast, uncurated nature presented a classic "needle in a haystack" problem, a challenge compounded by the fact that the dataset's creators had already removed images with prominent faces for privacy reasons. Our task was therefore to find the subtle signals that remained. The canonical public run (`run_2025-08-17_20-18-29`) processed **39,258** images and identified **125** target faces (~0.32% of source images) — see [`docs/latest_run_showcase/report.md`](./docs/latest_run_showcase/report.md) and [`dataset_card.md`](./dataset_card.md).
 
 This outcome confirms the pipeline's functional correctness and its effectiveness at extracting a rare signal from a pre-filtered, noisy source. From a strategic perspective, this was an excellent stress test. While a future project aimed purely at large-scale data acquisition would benefit from a more targeted source (like a portrait collection) for efficiency, this run successfully demonstrated the system's capability to handle the challenges of real-world, web-scale data.
 
 ### 4.1.1. Face Detection Count Investigation — Resolution Achieved
 
-An initial concern emerged from pipeline runs detecting **24,499 total faces** across 39,258 processed images (approximately **0.62 faces per image**), which appeared to contradict the assumption that the WIT dataset was pre-filtered to remove images with prominent faces. **This concern has been systematically investigated and resolved.**
+An early dual-classifier-era concern cited **~24k** faces on an older intermediate run. The **canonical public run** detects **15,465 total faces** across 39,258 processed images (approximately **0.39 faces per image**), which initially appeared to contradict the assumption that the WIT dataset was pre-filtered to remove images with prominent faces. **This concern has been systematically investigated and resolved.**
 
 **Key Finding**: The high face count is explained by the presence of multiple faces per image. Systematic analysis revealed that many images contain multiple faces, with some images containing over 100 faces. These are likely crowd scenes, group photos, events, family gatherings, and similar multi-person contexts. This finding validates the YOLOv8-Face model's accuracy rather than indicating false positives.
 
@@ -147,9 +143,9 @@ The current models perform well but are not perfect. The system is designed to a
 -   **Confidence-Based Filtering:** The final datasets include model confidence scores, allowing downstream researchers to tune their own precision/recall trade-off based on their specific needs.
 -   **Qualitative Analysis:** The pipeline automatically generates a sample of "kept" and "rejected" images in the `qualitative_analysis/` directory of each run's output. This is a critical tool for error analysis, allowing researchers to quickly identify the strengths and weaknesses of the current models.
 
-A critical observation from the run is the behavior of the two-stage classification. While the dual-classifier approach was designed for maximum precision, the results suggest a significant trade-off. The `sunglasses` classifier removed **12 images** that had been positively identified by the `eyeglasses` model (out of 79 total). Qualitative analysis of the rejected images (available in the run artifacts) suggests that many of these may have been false positives, incorrectly identified as sunglasses.
+A critical **historical** observation (dual-classifier era, not the current default) was that a `sunglasses` classifier removed images that the `eyeglasses` model had kept (example older note: **12 of 79**). That trade-off motivated disabling sunglasses rejection.
 
-This raises two strategic questions: 1) Is the sunglasses model well-calibrated for this task? 2) Is the eyeglasses model already sufficient, having been trained to implicitly recognize only prescription eyewear? This suggests that the second filter might be redundant and could be disabled to improve recall.
+**Canonical public run:** sunglasses rejection is **off** (`enable_sunglasses_rejection: false`). Final targets = **125** eyeglasses faces; sunglasses removals are **N/A** for the showcase numbers. Treat older “12 of 79” / dual-classifier prose as historical only.
 
 ---
 
@@ -175,7 +171,7 @@ This project successfully delivered a robust, well-documented, and reproducible 
 To continue this work, the following strategic steps are recommended:
 
 1.  **Source a Higher-Density Dataset:** To build a large-scale dataset efficiently, the next step should be to identify and procure a data source with a higher concentration of human portraits.
-2.  **Re-evaluate the Sunglasses Classification Step:** Conduct a detailed error analysis on the images rejected by the sunglasses classifier. This analysis should determine if the model is performing as intended and whether the primary eyeglasses classifier is sufficient on its own, potentially simplifying the pipeline and improving recall without a significant loss in precision.
+2.  **Keep Sunglasses Rejection Off by Default:** The dual-classifier era already showed sunglasses rejection harmed recall; the canonical run keeps `enable_sunglasses_rejection: false`. Revisit only with a fresh calibrated model + labeled error analysis — do not treat older “12 of 79” notes as current showcase truth.
 3.  **Implement Phased Model Fine-Tuning to Address Domain Shift:** Acknowledge that the pre-trained models were not trained on data representative of the WIT dataset. To improve performance, initiate a phased fine-tuning plan, starting with simple, low-risk retraining of the final model layer and progressing toward full-model fine-tuning as a high-quality, human-labeled dataset is curated.
 4.  **Expand to a Multimodal, Quality-Aware Filtering Strategy:** Enhance the pipeline's intelligence by incorporating additional data signals. This includes pre-filtering for image quality (e.g., blur detection) and content type (e.g., diagrams, cartoons), and leveraging the WIT dataset's rich textual metadata with keyword heuristics or advanced multimodal models like CLIP. This would create a more context-aware system, improving both efficiency and accuracy.
 5.  **Activate the Full Test Suite:** The obsolete test suite should be updated to match the current architecture to ensure long-term reliability and code health.
