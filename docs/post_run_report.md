@@ -26,7 +26,7 @@ The system uses a decoupled, two-stage process for maximum flexibility and obser
 
 This design allows for rapid iteration on analytics and filtering logic without re-running the expensive model inference stage, a significant advantage in any data-centric environment.
 
-> For a visual representation and more detailed breakdown of the architectural rationale, please see the **[High-Level Architecture](./README_detailed.md#high-level-architecture)** section in `README_detailed.md`.
+> For a visual representation and more detailed breakdown of the architectural rationale, please see the **[High-Level Architecture](./TECHNICAL.md#high-level-architecture)** section in `docs/TECHNICAL.md`.
 
 ### 2.2. Technology Stack
 
@@ -55,7 +55,7 @@ The engineering choices made throughout this project were deliberate, prioritizi
 
 See **§2.1** above for the canonical two-stage design (this section previously duplicated that narrative).
 
-> Architecture deep-dive: **[High-Level Architecture](./README_detailed.md#high-level-architecture)** in `README_detailed.md`.
+> Architecture deep-dive: **[High-Level Architecture](./TECHNICAL.md#high-level-architecture)** in `docs/TECHNICAL.md`.
 
 ### 3.2. Technology Stack & Rationale
 
