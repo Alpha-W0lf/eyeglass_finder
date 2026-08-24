@@ -26,7 +26,7 @@ poetry run python scripts/process_data.py --config config/production.yaml
 GIT_COMMIT_HASH=$(git rev-parse HEAD) docker compose build && docker compose run --rm app
 ```
 
-Full setup, configs, and ops: [`README_detailed.md`](README_detailed.md).
+Full setup, configs, and ops: [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
 
 ---
 
@@ -107,12 +107,12 @@ The pipeline successfully identifies a wide variety of eyeglasses across differe
 | Doc | Purpose |
 |-----|---------|
 | [Latest Run Showcase](./docs/latest_run_showcase/report.md) | Full report from the most recent pipeline run |
-| [Post-Project Analysis](./post_run_report.md) | Optimization journey from baseline to high performance |
+| [Post-Project Analysis](./docs/post_run_report.md) | Optimization journey from baseline to high performance |
 | [Dataset Card](./dataset_card.md) | Output schema, statistics, run details |
-| [Detailed Technical README](./README_detailed.md) | Full setup and operational instructions |
+| [Technical Reference](./docs/TECHNICAL.md) | Full setup and operational instructions |
 
 Building similar high-throughput MLOps pipelines? Reach me on [LinkedIn](https://www.linkedin.com/in/tchacko1/).
 
-**License:** Personal Use — see [`LICENSE`](LICENSE) (not OSI open source / not MIT).
+**License:** PolyForm Noncommercial 1.0.0 — see [`LICENSE`](LICENSE) (source-available; not OSI open source).
 
 *Last reviewed: 2026-08-02.*
