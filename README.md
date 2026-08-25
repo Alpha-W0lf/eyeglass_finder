@@ -19,6 +19,8 @@ Case study in production-minded CV/MLOps under hard, privacy-scrubbed data const
 
 ### Quick start
 
+> **Prereqs (macOS):** Python **3.12** (newer CPythons lack wheels for the pinned deps) and `brew install cairo`.
+
 ```bash
 poetry install
 poetry run python scripts/process_data.py --config config/production.yaml

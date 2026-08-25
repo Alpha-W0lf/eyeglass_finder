@@ -9,7 +9,12 @@ This document provides a comprehensive overview of a production‑grade, fully r
 > -   **Run on Apple Silicon (Recommended for Performance):**
 >     ```bash
 >     # Install dependencies once
->     poetry install
+>     # Python 3.12 required (3.13+ lacks wheels for pinned pyarrow/pydantic-core).
+>     # macOS also needs the cairo system library for artifact rendering:
+>     brew install cairo
+>     # Homebrew libs are not on Python's default search path — run pipelines with:
+>     export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib
+poetry install
 >     # Run the two-stage pipeline
 >     poetry run python scripts/process_data.py --config config/production.yaml
 >     ```
