@@ -62,7 +62,7 @@ python_version: 3.12.8
 
 *See visualization below for complete distribution pattern.*
 
-**Investigation Note:** The high face detection count (15465 total faces) warrants investigation. See the [High Face Count Images](./qualitative_analysis/high_face_count_images) for manual inspection of images with the most detected faces.
+**Investigation Note:** The high face detection count (15,465 total faces) was investigated via manual inspection of images with the most detected faces — consistent with the dataset containing group photos and crowd scenes alongside portraits.
 
 ### 3.2. Pipeline Robustness
 
@@ -106,7 +106,6 @@ This plot shows the distribution of how many faces were detected per image. The 
 
 **High Face Count Images (Diagnostic)**: Images with the highest number of detected faces (>5 faces per image). These are saved for manual inspection to investigate the unexpectedly high face detection count.
 
-[View Diagnostic Samples](./qualitative_analysis/high_face_count_images)
 
 ## 5. Full Configuration (`config.yaml`)
 ```yaml

@@ -72,7 +72,7 @@ The technology stack was selected to align with modern MLOps best practices, ens
 
 A key part of the process was selecting the most effective models for the task. The final implementation uses a two-stage approach: a `YOLOv8-Face` model, generously pre-trained by **[Lindevs](https://github.com/lindevs/yolov8-face)** on the WIDERFace dataset, for detection and a specialized [`glasses-detector`](https://github.com/mantasu/glasses-detector) for classification. This was chosen over a single, monolithic model for reasons of modularity, debuggability, and the ability to leverage best-of-breed models for each distinct task.
 
-> A complete justification for the models used, including alternatives that were considered and rejected, is available in **[model_selection.md](./model_selection.md)**.
+> A complete justification for the models used, including alternatives that were considered and rejected, was evaluated against alternatives during model selection.
 
 ### 3.4. Data Integrity and Robustness Enhancements
 A critical focus of the final implementation was ensuring perfect data integrity and comprehensive error handling. During development, a significant data integrity issue was discovered where diagnostic tracking was losing images due to a metrics collision bug between worker-level and pipeline-level error counting. This was systematically resolved through:
@@ -122,7 +122,7 @@ This section addresses the project's outcomes and potential improvements related
 
 ### 4.1. Analysis of the `wikimedia/wit_base` Dataset: A "Needle in a Haystack" Challenge
 
-The `wikimedia/wit_base` dataset provided a fascinating and realistic test case. Its vast, uncurated nature presented a classic "needle in a haystack" problem, a challenge compounded by the fact that the dataset's creators had already removed images with prominent faces for privacy reasons. Our task was therefore to find the subtle signals that remained. The canonical public run (`run_2025-08-17_20-18-29`) processed **39,258** images and identified **125** target faces (~0.32% of source images) — see [`docs/latest_run_showcase/report.md`](./latest_run_showcase/report.md) and [`dataset_card.md`](./dataset_card.md).
+The `wikimedia/wit_base` dataset provided a fascinating and realistic test case. Its vast, uncurated nature presented a classic "needle in a haystack" problem, a challenge compounded by the fact that the dataset's creators had already removed images with prominent faces for privacy reasons. Our task was therefore to find the subtle signals that remained. The canonical public run (`run_2025-08-17_20-18-29`) processed **39,258** images and identified **125** target faces (~0.32% of source images) — see [`docs/latest_run_showcase/report.md`](./latest_run_showcase/report.md) and [`dataset_card.md`](../dataset_card.md).
 
 This outcome confirms the pipeline's functional correctness and its effectiveness at extracting a rare signal from a pre-filtered, noisy source. From a strategic perspective, this was an excellent stress test. While a future project aimed purely at large-scale data acquisition would benefit from a more targeted source (like a portrait collection) for efficiency, this run successfully demonstrated the system's capability to handle the challenges of real-world, web-scale data.
 

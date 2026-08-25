@@ -166,7 +166,7 @@ This decoupled design means that if you want to change a plot or adjust a filter
 
 This section details the engineering rationale behind the implementation, focusing on the "why" behind key choices and documenting the alternatives that were considered and rejected. This demonstrates a deliberate and informed design process.
 
-> **Performance Optimization Note:** For detailed analysis of performance optimization opportunities and the strategic shift to native execution on Apple Silicon, see **[docs/optimization_notes.md](./docs/optimization_notes.md)**. This document provides a comprehensive analysis of hardware utilization, dependency optimization, and algorithmic improvements that resulted in more than an order-of-magnitude performance improvement.
+> **Performance Optimization Note:** The performance gains documented in this project came from systematic analysis of hardware utilization, dependency optimization, and algorithmic improvements across multiple optimization phases — detailed in [Post-Project Analysis](./post_run_report.md).
 
 ### Technology Stack Rationale
 
@@ -178,7 +178,7 @@ This section details the engineering rationale behind the implementation, focusi
 | Core ML Framework         | PyTorch                                          | The entire pipeline leverages PyTorch. The `glasses-detector` uses it directly, and the `YOLOv8-Face` model is loaded via the `ultralytics` library, which is built on PyTorch. This provides broad hardware support (CUDA/MPS/CPU) and optimal inference speed.       |
 | Data Format               | Apache Parquet                                   | **Alternative:** CSV. <br> **Decision:** Parquet is a columnar storage format offering significantly better performance and compression than CSV for large datasets. It enforces a schema, reducing the risk of data corruption.                                 |
 
-> For a detailed justification of our model architecture and specific model choices, please see **[docs/architecture.md](./docs/architecture.md)**.
+> For a detailed justification of our model architecture and specific model choices, please see **[docs/architecture.md](./architecture.md)**.
 
 ### Architectural Rationale
 
@@ -214,7 +214,7 @@ The pipeline includes a built-in monitoring suite that provides deep insight int
 
 For example, the following plot from a production run on an M2 Max shows stable resource utilization and the initial ramp-up period, demonstrating a well-behaved system under load:
 
-![Resource Utilization](./docs/latest_run_showcase/visualizations/resource_utilization.png)
+![Resource Utilization](./latest_run_showcase/visualizations/resource_utilization.png)
 
 #### A Note on CPU-Specific Optimization
 While the primary path for performance scaling is through GPU acceleration (NVIDIA CUDA or Apple MPS), we also considered advanced CPU optimization strategies. For instance, frameworks like `ONNX Runtime` can offer enhanced CPU performance through parallel execution providers. However, enabling this often requires building the runtime from source with specific flags, a process that adds significant time and complexity to the Docker build and can compromise portability.
@@ -282,7 +282,7 @@ The pipeline is executed differently depending on your chosen environment.
 This is the recommended method for development and for users on Apple Silicon seeking maximum performance. The two stages of the pipeline are run sequentially.
 
 1.  **Run Stage 1 (Processing):**
-    This script performs the heavy-lifting of model inference and creates a new, timestamped output directory (e.g., `outputs/run_2025-08-18_15-30-00/`). We recommend using the production-tuned [config/production.yaml](./config/production.yaml) configuration.
+    This script performs the heavy-lifting of model inference and creates a new, timestamped output directory (e.g., `outputs/run_2025-08-18_15-30-00/`). We recommend using the production-tuned [config/production.yaml](../config/production.yaml) configuration.
     ```bash
     poetry run python scripts/process_data.py --config config/production.yaml
     ```
@@ -447,7 +447,7 @@ The pipeline automatically identifies and analyzes face detection patterns:
 This comprehensive diagnostic framework transforms each pipeline run into a rich source of insights, supporting both immediate quality evaluation and long-term iterative improvement of the face detection and classification models.
 
 ## Scaling and Extensibility
-This project was intentionally designed as a robust foundation that can be evolved into a production-grade, web-scale system. A detailed strategy for this evolution is documented in the **[Production Deployment notes](./docs/production_deployment.md)** and **[Roadmap](./docs/roadmap.md)**. Those notes outline a multi-phase plan that goes beyond simply scaling the architecture and addresses the key pillars of enterprise-ready MLOps, including:
+This project was intentionally designed as a robust foundation that can be evolved into a production-grade, web-scale system. A multi-phase evolution path beyond single-machine scaling addresses the key pillars of enterprise-ready MLOps, including:
 
 -   **Advanced Observability:** Monitoring for data drift and implementing model explainability.
 -   **Model & Data Governance:** Using model and schema registries to ensure reproducibility and prevent pipeline failures.
