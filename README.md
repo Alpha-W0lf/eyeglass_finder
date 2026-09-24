@@ -15,7 +15,7 @@ Case study in production-minded CV/MLOps under hard, privacy-scrubbed **input** 
 
 | ~17× throughput | Architecture | Observability |
 | :---: | :---: | :---: |
-| Optimized from **9.8 images/sec** (Docker baseline) to **~167.5 images/sec** on native hardware via GPU acceleration, memory tuning, and batching. | Decoupled two-stage pipeline (detect → classify) with automatic hardware selection (CUDA, Apple MPS, or CPU). | Rich run artifacts: performance reports, system plots, and browsable HTML galleries for qualitative QA. |
+| Optimized from **9.8 images/sec** (Docker CPU baseline) to **~167.5 images/sec** on native hardware (Apple Silicon MPS; see [`docs/post_run_report.md`](docs/post_run_report.md)) via GPU acceleration, memory tuning, and batching. | Decoupled two-stage pipeline (detect → classify) with automatic hardware selection (CUDA, Apple MPS, or CPU). | Rich run artifacts: performance reports, system plots, and browsable HTML galleries for qualitative QA. |
 
 <sub>
 <strong>Results footnotes:</strong><br>
