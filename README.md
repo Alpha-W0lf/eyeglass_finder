@@ -1,8 +1,8 @@
 # Eyeglass Finder
 
-Finding needles in a privacy-scrubbed haystack — a high-throughput **MLOps / computer-vision** pipeline that finds rare faces with eyeglasses in a vast, noisy dataset.
+Finding needles in a **privacy-scrubbed** haystack — a high-throughput **MLOps / computer-vision** pipeline that finds rare faces with eyeglasses in WIT after upstream creators removed many **primary-subject** faces. The browsable galleries below are the **needles the pipeline found** (public Wikimedia-derived crops for qualitative QA), not a claim that outputs are anonymized.
 
-Case study in production-minded CV/MLOps under hard, privacy-scrubbed data constraints.
+Case study in production-minded CV/MLOps under hard, privacy-scrubbed **input** data constraints.
 
 | | | |
 |:---:|:---:|:---:|
@@ -16,6 +16,13 @@ Case study in production-minded CV/MLOps under hard, privacy-scrubbed data const
 | ~17× throughput | Architecture | Observability |
 | :---: | :---: | :---: |
 | Optimized from **9.8 images/sec** (Docker baseline) to **~167.5 images/sec** on native hardware via GPU acceleration, memory tuning, and batching. | Decoupled two-stage pipeline (detect → classify) with automatic hardware selection (CUDA, Apple MPS, or CPU). | Rich run artifacts: performance reports, system plots, and browsable HTML galleries for qualitative QA. |
+
+<sub>
+<strong>Results footnotes:</strong><br>
+<sup>9.8</sup> Docker-CPU baseline on M2 Max.<br>
+<sup>167.5</sup> Native M2 Max MPS showcase run <code>run_2025-08-17_20-18-29</code> (report <strong>167.49</strong>).<br>
+<sup>17×</sup> <strong>17.09×</strong> = 167.5 / 9.8 (native MPS optimized vs Docker-CPU baseline). See [`docs/post_run_report.md`](docs/post_run_report.md) and [`docs/latest_run_showcase/report.md`](docs/latest_run_showcase/report.md).
+</sub>
 
 ### Quick start
 
@@ -34,7 +41,9 @@ Full setup, configs, and ops: [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
 
 ### The Challenge: Finding a Needle in a Pre-Filtered Haystack
 
-The goal was to process the Wikipedia-based Image Text (WIT) dataset, but with a significant, real-world complication: for user privacy, the dataset had already been **purposely scrubbed to remove images where human faces were the primary subject.** This transformed a standard filtering task into a true "needle-in-a-haystack" problem. The pipeline had to be sensitive enough to find the subtle, less prominent faces that remained.
+The goal was to process the Wikipedia-based Image Text (WIT) dataset under a real constraint: for user privacy, the dataset had already been **purposely scrubbed to remove images where human faces were the primary subject.** That turned a routine filter into a true needle-in-a-haystack problem — a **sparse** face distribution (canonical showcase: most images contain zero detected faces). The pipeline had to be sensitive enough to find the subtle, less-prominent faces that remained and still classify eyeglasses.
+
+**The galleries and thumbnails in this README are the proof of that hard find:** extracted public Wikimedia-derived face crops kept for qualitative QA. They are not a privacy regression; they are the needles. See [`CREDITS.md`](CREDITS.md) for Wikimedia / WIT attribution.
 
 The plot below visualizes this challenge, showing that the vast majority of images in the dataset contained zero detected faces, emphasizing the difficulty and precision required.
 
@@ -112,9 +121,12 @@ The pipeline successfully identifies a wide variety of eyeglasses across differe
 | [Post-Project Analysis](./docs/post_run_report.md) | Optimization journey from baseline to high performance |
 | [Dataset Card](./dataset_card.md) | Output schema, statistics, run details |
 | [Technical Reference](./docs/TECHNICAL.md) | Full setup and operational instructions |
+| [Credits / data provenance](./CREDITS.md) | WIT / Wikimedia attribution; software vs showcase-media licenses |
 
 Building similar high-throughput MLOps pipelines? Reach me on [LinkedIn](https://www.linkedin.com/in/tchacko1/).
 
+**Credits / data provenance:** Showcase crops and `image_url` links are Wikimedia Commons / WIT–derived; see [`CREDITS.md`](CREDITS.md). Repository software/docs remain PolyForm Noncommercial 1.0.0.
+
 **License:** PolyForm Noncommercial 1.0.0 — see [`LICENSE`](LICENSE) (source-available; not OSI open source).
 
-*Last reviewed: 2026-08-02.*
+*Last reviewed: 2026-09-24.*
