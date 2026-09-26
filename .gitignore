@@ -146,4 +146,6 @@ outputs/
 /outputs/*
 !/outputs/.gitkeep
 /post_run_report.md
-!/docs/latest_run_showcase/ 
+!/docs/latest_run_showcase/
+CLAUDE.md
+.cursor/
