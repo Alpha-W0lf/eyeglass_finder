@@ -10,8 +10,8 @@ packages = [{include = "src"}]
 python = ">=3.12,<4.0"
 pandas = "^2.2.2"
 pyarrow = "^23.0.1"
-torch = "2.6.0"
-torchvision = "0.21.0"
+torch = "2.3.1"
+torchvision = "0.18.1"
 opencv-python = "^4.10.0.84"
 # Vendored fork to resolve version constraints
 glasses-detector = { path = "libs/glasses-detector", develop = false }
