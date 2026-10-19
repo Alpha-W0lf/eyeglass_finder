@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "eyeglass-finder"
+version = "0.1.0"
+description = "Two-stage pipeline for face detection and eyewear classification with reproducible runs and reporting."
+authors = ["Thomas Chacko <74878700+Alpha-W0lf@users.noreply.github.com>"]
+license = "AGPL-3.0-only"
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0"
+pandas = "^2.2.2"
+pyarrow = "^23.0.1"
+torch = "2.6.0"
+torchvision = "0.21.0"
+# Vendored fork to resolve version constraints
+glasses-detector = { path = "libs/glasses-detector", develop = false }
+tqdm = "^4.66.4"
+numpy = "^1.26.4"
+loguru = "^0.7.2"
+PyYAML = "^6.0.1"
+pandera = "^0.19.2"
+Pillow = ">=10.3,<13.0"
+matplotlib = "^3.9.0"
+ultralytics = "^8.2.55"
+scipy = "^1.14.0"
+seaborn = "^0.13.2"
+psutil = "^5.9.8"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0.3"
+pytest-cov = "^5.0.0"
+pytest-mock = "^3.14.0"
+pre-commit = "^3.7.1"
+ruff = "^0.4.8"
+pip-audit = "^2.7.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,100 @@
+# -----------------
+# Project Configuration
+# -----------------
+# Docker CPU baseline settings for today's code. The committed baseline report
+# (docs/baseline_run/) ran commit 1a6c8aa with that commit's own config.yaml,
+# which uses the same values. Matches the original
+# 2025-08-16 baseline's settings: 4,000 images (data/test_2 = the first 2,000
+# rows of each of the two WIT shards), 8 workers, chunk size 333, face-detector
+# confidence 0.50. Create the image set with:
+#   python scripts/create_test_dataset.py --input-dir data/raw --output-dir data/test_2 --sample-size 2000
+
+# File and Directory Paths
+paths:
+  input_dir: "data/test_2"
+  output_dir: "outputs"
+  output_filename: "filtered_dataset.parquet"
+
+# Data Processing Parameters
+data_processing:
+  # The glob pattern to use for discovering input files.
+  file_pattern: "sample_train-*.parquet"
+  # The number of rows to process in a single chunk. This affects memory usage
+  # and the granularity of parallel processing.
+  chunk_size: 333
+
+# Model and Filtering Parameters
+model_params:
+  # Parameters for the face detection stage (YOLOv8-Face)
+  face_detection:
+    # Path to the pre-trained YOLOv8 face model file.
+    model_path: models/yolov8n-face-lindevs.pt
+    # The minimum width and height of a detected face to be considered valid.
+    # This is a core requirement of the project.
+    min_face_size: 100
+    # The confidence score threshold for a detected face to be considered valid.
+    # Faces with a confidence score below this value will be discarded.
+    min_confidence: 0.50
+    # Whether to keep all detected faces per image or only the most likely one.
+    keep_all: false
+    # The target size (width, height) to which cropped faces are resized
+    # before being passed to the classification models.
+    target_size: [224, 224]
+
+  # Parameters for the eyeglass classification stage
+  classification:
+    # Threshold on classifier probability for marking as eyewear present
+    eyewear_prob_threshold: 0.65
+
+logging:
+  level: "INFO"
+  format: "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+
+# -----------------------------------------------------------------------------
+# Hardware Specific Settings
+# -----------------------------------------------------------------------------
+hardware:
+  max_workers: 8               # Worker processes (each loads its own models)
+  use_mps_acceleration: true   # Use the Apple GPU when available
+  device_override: null        # Manual device override if needed
+
+# -----------------------------------------------------------------------------
+# Performance Tuning Parameters
+# -----------------------------------------------------------------------------
+performance:
+  prefetch_chunks: 4            # Number of data chunks to prefetch
+  inference_batch_size: 64      # Number of images to process in one go by the model
+  face_classification_batch_size: 16   # GPU-oriented classification micro-batch size
+  # Ramp-up (startup smoothing)
+  rampup_enabled: false        # the original baseline had no ramp-up
+  rampup_warmup_chunks: 4
+  rampup_initial_prefetch_chunks: 1
+  rampup_initial_chunk_size_override: 192
+  rampup_stagger_worker_submissions_ms: 100
+
+# -----------------------------------------------------------------------------
+# Observability Enhancements
+# -----------------------------------------------------------------------------
+observability:
+  detailed_metrics: true       # Enhanced metric collection
+  memory_profiling: false      # Enable for debugging only
+  performance_alerts:
+    memory_threshold: 85       # Alert if memory > 85%
+
+# -----------------------------------------------------------------------------
+# Report Generation Settings
+# -----------------------------------------------------------------------------
+report_generation:
+  # The number of sample images to save for qualitative analysis.
+  qualitative_analysis_sample_size: 20
+
+# -----------------------------------------------------------------------------
+# Sampling / Cropping Settings
+# -----------------------------------------------------------------------------
+sampling:
+  square_crop: true            # center square crop around detection
+  crop_margin: 0.20            # 20% expansion of max(width,height)
+  pad_mode: null               # set to 'edge' to pad instead of clamp
+  apply_to_classifier: false   # artifacts only; disable for classifier input
+
+# -----------------------------------------------------------------------------

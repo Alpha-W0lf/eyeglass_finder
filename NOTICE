@@ -1,0 +1,10 @@
+Eyeglass Finder
+Copyright (c) 2025-2026 Thomas Chacko
+
+This project's own software and documentation are licensed under the
+GNU Affero General Public License, version 3 (SPDX: AGPL-3.0-only).
+The full license text is in LICENSE.
+
+Third-party code (libs/glasses-detector/, MIT), third-party model weights
+(downloaded at setup, not bundled) and the showcase images (Wikimedia Commons
+licences) are listed with their sources and licences in CREDITS.md.

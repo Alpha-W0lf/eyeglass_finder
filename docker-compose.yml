@@ -1,0 +1,45 @@
+services:
+  app:
+    build:
+      context: .
+      target: app
+      args:
+        - GIT_COMMIT_HASH=${GIT_COMMIT_HASH:-unknown}
+    volumes:
+      - ./outputs:/app/outputs
+      - ./data:/app/data
+      - ./config:/app/config
+    environment:
+      - YOLO_CONFIG_DIR=/tmp/Ultralytics
+    command: python scripts/process_data.py --config config/production.yaml
+    # GPU access (optional, Linux/WSL2 with NVIDIA Container Toolkit)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  builder:
+    build:
+      context: .
+      target: dev_deps
+    volumes:
+      - .:/app
+
+  test:
+    build:
+      context: .
+      target: test
+    volumes:
+      - .:/app
+    command: pytest -q
+
+  poetry:
+    build:
+      context: .
+      target: deps_base
+    volumes:
+      - .:/app
+    entrypoint: ["poetry"]
