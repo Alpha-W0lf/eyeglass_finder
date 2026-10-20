@@ -14,7 +14,7 @@ logging:
 report_generation:
   qualitative_analysis_sample_size: 20
   gallery_min_eyeglasses_proba: 0.97
-  gallery_visual_review_csv: docs/latest_run_showcase/confirmed_visual_review.csv
+  gallery_visual_review_csv: docs/latest_run_showcase/visual_review.csv
 
 hardware:
   max_workers: 10

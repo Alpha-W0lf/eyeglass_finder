@@ -34,7 +34,7 @@ GALLERY_STYLE = (
 
 
 def load_visual_review(path: str | Path) -> dict:
-    """Read a visual review CSV (image_id, face_index, glasses_confidence, visual_review) keyed by (image_id, face_index)."""
+    """Read a visual review CSV (image_id, face_index, visual_review, plus any other columns) keyed by (image_id, face_index)."""
     table = pd.read_csv(path)
     return {(int(r.image_id), int(r.face_index)): r.visual_review for r in table.itertuples()}
 

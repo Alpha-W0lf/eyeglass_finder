@@ -10,7 +10,7 @@ This card describes the dataset one run of the **[Eyeglass Finder pipeline](http
 >
 > -   **Run:** `run_2026-10-19_01-20-39` on an Apple M2 Max (native, GPU via MPS).
 > -   **Result:** from **39,258** source images, **44** faces at least 100 px that the classifier scored as wearing eyeglasses (score ≥ 0.90). A blind visual review confirmed 43 of them.
-> -   **In this repository:** the run's report, plots and galleries, plus [`confirmed_visual_review.csv`](docs/latest_run_showcase/confirmed_visual_review.csv) and [`image_credits.csv`](docs/latest_run_showcase/image_credits.csv), all in [`docs/latest_run_showcase/`](docs/latest_run_showcase/). The parquet files described below are written to `outputs/run_<timestamp>/` when you run the pipeline; they are not committed.
+> -   **In this repository:** the run's report, plots and galleries, plus [`visual_review.csv`](docs/latest_run_showcase/visual_review.csv) and [`image_credits.csv`](docs/latest_run_showcase/image_credits.csv), all in [`docs/latest_run_showcase/`](docs/latest_run_showcase/). The parquet files described below are written to `outputs/run_<timestamp>/` when you run the pipeline; they are not committed.
 
 ## Source data
 

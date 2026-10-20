@@ -21,12 +21,12 @@
 | Faces detected | 15,465 |
 | Faces ≥ 100 px, classified | 414 |
 | **Faces with eyeglasses (score ≥ 0.90)** | **44** |
-| Confirmed in a blind visual review | 43 of 44 finds ([review results](docs/latest_run_showcase/confirmed_visual_review.csv)) |
+| Confirmed in a blind AI visual review | 43 of 44 finds ([review labels](docs/latest_run_showcase/visual_review.csv)) |
 | Decode errors | 0 |
 
-<sub>Provenance: both numbers are end-to-end runs on the same M2 Max, each with a committed report. The 10.6 baseline is the pre-tuning code (August 2025) in Docker on the CPU, 4,000 images ([`docs/baseline_run/report.md`](docs/baseline_run/report.md), 10.58). The 225 figure is the tuned code on the GPU, 39,258 images from the same two shards ([`docs/latest_run_showcase/report.md`](docs/latest_run_showcase/report.md), 225.05). 225.05 / 10.58 = 21.27.</sub>
+<sub>Provenance: both numbers are end-to-end runs on the same M2 Max, each with a committed report. The showcase report names commit `e20624b`, from the development history before this repository's single-commit public release. The 10.6 baseline is the pre-tuning code (August 2025) in Docker on the CPU, 4,000 images ([`docs/baseline_run/report.md`](docs/baseline_run/report.md), 10.58). The 225 figure is the tuned code on the GPU, 39,258 images from the same two shards ([`docs/latest_run_showcase/report.md`](docs/latest_run_showcase/report.md), 225.05). 225.05 / 10.58 = 21.27.</sub>
 
-<sub>Blind visual review: 112 crops: 44 finds, 18 near misses scored 0.60–0.89 (the near-miss page lists the top 20; its last two score 0.597 and 0.598, shown rounded as 0.60), and 50 random rejected faces, reviewed by a fresh AI reviewer agent, with every label written before the scores were revealed, 2026-10-19. The labels for the 44 finds are in [`confirmed_visual_review.csv`](docs/latest_run_showcase/confirmed_visual_review.csv).</sub>
+<sub>Blind visual review: 112 crops: 44 finds, 18 near misses scored 0.60–0.89 (the near-miss page lists the top 20; its last two score 0.597 and 0.598, shown rounded as 0.60), and 50 random rejected faces, reviewed by a fresh AI reviewer agent, with every label written before the scores were revealed, 2026-10-19. All 112 labels are in [`visual_review.csv`](docs/latest_run_showcase/visual_review.csv).</sub>
 
 ## The problem
 

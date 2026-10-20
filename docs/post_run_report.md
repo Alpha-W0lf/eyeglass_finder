@@ -6,7 +6,7 @@
 
 -   **Objective:** To architect and systematically optimize a data pipeline for a challenging "needle-in-a-haystack" computer vision task: identifying faces with eyeglasses in a large, noisy, pre-filtered dataset.
 -   **Outcome:** Tuning and moving to the M2 Max GPU took throughput from **10.6 images/second** (pre-tuning code, Docker CPU; [baseline report](./baseline_run/report.md)) to **225 images/second** ([showcase report](./latest_run_showcase/report.md)): **~21× faster** (225.05 / 10.58 = 21.27). An earlier check run of the same code measured 179 images/sec (its report is not committed); speed varies between runs on the same machine.
--   **Final Results (from `run_2026-10-19_01-20-39`):** The optimized pipeline processed **39,258 images** and kept **44 target faces** (eyeglasses score ≥ 0.90). A blind visual review confirmed 43 of them ([`confirmed_visual_review.csv`](./latest_run_showcase/confirmed_visual_review.csv)).
+-   **Final Results (from `run_2026-10-19_01-20-39`):** The optimized pipeline processed **39,258 images** and kept **44 target faces** (eyeglasses score ≥ 0.90). A blind AI visual review confirmed 43 of them ([`visual_review.csv`](./latest_run_showcase/visual_review.csv)).
 -   **Showcase artifacts:** The run report, plots and galleries are in [`docs/latest_run_showcase/`](./latest_run_showcase/report.md). Full parquet outputs are written to `outputs/` locally and are not committed.
 
 ---

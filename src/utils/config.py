@@ -55,7 +55,7 @@ class ReportGenerationConfig:
     qualitative_analysis_sample_size: int
     # The public finds gallery shows only faces scored at or above this value (0 shows every find).
     gallery_min_eyeglasses_proba: float = 0.0
-    # Optional CSV (image_id, face_index, glasses_confidence, visual_review); when set, the finds page shows only visual_review == eyeglasses.
+    # Optional review CSV keyed by image_id and face_index with a visual_review column; when set, the finds page shows only visual_review == eyeglasses.
     gallery_visual_review_csv: str | None = None
 
 
