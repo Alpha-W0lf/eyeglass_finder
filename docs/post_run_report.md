@@ -4,7 +4,7 @@
 
 ## 1. Executive Summary
 
--   **Objective:** To architect and systematically optimize a data pipeline for a challenging "needle-in-a-haystack" computer vision task: identifying faces with eyeglasses in a large, noisy, pre-filtered dataset.
+-   **Objective:** Build and tune a pipeline that finds faces with eyeglasses in a large dataset filtered to avoid portraits.
 -   **Outcome:** Tuning and moving to the M2 Max GPU took throughput from **10.6 images/second** (pre-tuning code, Docker CPU; [baseline report](./baseline_run/report.md)) to **225 images/second** ([showcase report](./latest_run_showcase/report.md)): **~21× faster** (225.05 / 10.58 = 21.27). An earlier check run of the same code measured 179 images/sec (its report is not committed); speed varies between runs on the same machine.
 -   **Final Results (from `run_2026-10-19_01-20-39`):** The optimized pipeline processed **39,258 images** and kept **44 target faces** (eyeglasses score ≥ 0.90). A blind AI visual review confirmed 43 of them ([`visual_review.csv`](./latest_run_showcase/visual_review.csv)).
 -   **Showcase artifacts:** The run report, plots and galleries are in [`docs/latest_run_showcase/`](./latest_run_showcase/report.md). Full parquet outputs are written to `outputs/` locally and are not committed.
@@ -42,6 +42,14 @@ Every input image lands in the run's data funnel: no face, faces detected, decod
 ### 2.5. Performance Choices
 
 GPU acceleration was the path to throughput, so CPU-specific work such as custom `ONNX Runtime` builds was left out to keep the Docker build simple. A built-in monitor records CPU, memory and disk use every second, plus per-chunk worker times, and every run plots them.
+
+### 2.6. How the results were checked
+
+-   **Speed.** Both numbers have committed reports (see §1 and §3). The baseline ran 4,000 images from the same two shards the showcase run covers in full (39,258). The showcase report names commit `e20624b`, from the development history before this repository's single-commit public release.
+-   **Precision.** A blind AI visual review on 2026-10-19 labelled 112 crops before seeing any score: the 44 finds, the 18 near misses scored 0.60–0.89 (the near-miss gallery shows the top 20; the last two score 0.597–0.598, below the band), and 50 random rejected faces. 43 of the 44 finds wear eyeglasses (2 of the 43 are artworks). Labels: [`visual_review.csv`](./latest_run_showcase/visual_review.csv).
+-   **Recall.** A second blind review labelled 60 more random rejected faces and re-labelled the 18 near misses. Among the faces the pipeline judges (100 px and up), recall is estimated at 74% (56–86%): 43 confirmed finds against the eyeglass wearers among rejected faces (2 of 18 near misses, plus 4 of 110 random rejected faces across both reviews, scaled to the 352 rejected faces outside the near-miss band), with a 95% Wilson interval on the sampled miss rate carried through to recall. Faces under 100 px are out of scope by design.
+-   **An earlier run.** The second review also checked the 84 finds an earlier run with a box-size bug kept that this run does not: 59 are real photos of people in eyeglasses. With the corrected boxes, 56 of them are not among the faces this run judges (smaller than 100 px, or not detected) and 3 were judged and rejected (their scores in this run are in the `score_in_2026_run` column; the CSV's box sizes are the earlier run's). All 162 labels: [`visual_review_2.csv`](./latest_run_showcase/visual_review_2.csv).
+-   **Face size versus the dataset filter.** The dataset's publishers used RetinaFace; measured with this pipeline's own face boxes (a different detector) against the source images, the finds cover 10–17% of their pictures (median 13%).
 
 ---
 

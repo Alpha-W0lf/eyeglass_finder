@@ -62,7 +62,7 @@ This document covers the design, setup, configuration and outputs of a data pipe
 ---
 
 ## Project Overview
-The primary goal of this project is to showcase the engineering of a robust, scalable, and high-performance data pipeline to solve a challenging "needle-in-a-haystack" problem. It processes the Wikipedia-based Image Text (WIT) dataset—whose publishers left out images where a person is the primary subject (a face covering more than 10% of the picture, by their RetinaFace detector)—to identify the rare instances of individuals wearing eyeglasses.
+Eyeglass Finder is a high-throughput data pipeline for a needle-in-a-haystack problem. It processes the Wikipedia-based Image Text (WIT) dataset—whose publishers left out images where a person is the primary subject (a face covering more than 10% of the picture, by their RetinaFace detector)—to identify the rare instances of individuals wearing eyeglasses.
 
 The pipeline is engineered as a multi-stage ML system, separating heavy processing from final artifact generation:
 
@@ -159,7 +159,7 @@ This decoupled design means that if you want to change a plot or adjust a filter
 
 This section details the engineering rationale behind the implementation, focusing on the "why" behind key choices and documenting the alternatives that were considered and rejected. This demonstrates a deliberate and informed design process.
 
-> **Performance Optimization Note:** The performance gains documented in this project came from systematic analysis of hardware utilization, dependency optimization, and algorithmic improvements across multiple optimization phases — detailed in [Post-Project Analysis](./post_run_report.md).
+> **Performance note:** the ~21× came from moving to the Apple GPU, batched face detection, more worker processes and memory-aware prefetching, step by step in [Post-Project Analysis](./post_run_report.md).
 
 ### Technology Stack Rationale
 
@@ -187,7 +187,7 @@ A key architectural decision was to use a two-stage pipeline (detection then cla
 
 -   **Why We Chose `YOLOv8-Face`:**
     -   **Speed:** the nano model is small and fast, which matters when most of a 39,258-image run is spent in face detection.
-    -   `YOLOv8-Face` is delivered via the `ultralytics` library, which is modern, robust, and exceptionally easy to use. This removes the significant implementation and portability issues we encountered with other libraries, making it a superior choice from an engineering perspective.
+    -   `YOLOv8-Face` is delivered via the `ultralytics` library, which is well maintained and easy to deploy. It avoided the implementation and portability problems other face-detection libraries caused.
     -   The default configuration uses the **`YOLOv8n-Face` ("nano")** variant. It is smaller and faster than the larger variants. The weights are downloaded from the [lindevs/yolov8-face](https://github.com/lindevs/yolov8-face/releases/tag/1.0.1) release on first use and checked against a pinned SHA-256 (`src/modeling/weights.py`); sources and licences are in [CREDITS.md](../CREDITS.md). To try another variant, add its URL and SHA-256 there and point `model_path` at it.
     -   The specific `YOLOv8-Face` models used in this project were developed by **[Lindevs](https://github.com/lindevs/yolov8-face)** and trained on the well-known **WIDERFace dataset**, providing a strong foundation of performance on a diverse range of faces.
 
@@ -302,9 +302,9 @@ poetry run pytest -q
 ```
 
 ### Hardware Acceleration Notes
-The application code is fully hardware-aware and engineered for optimal performance on different platforms.
+The code picks the best available hardware on each platform.
 
-#### **Apple Silicon (M1/M2/M3/M4) - PERFORMANCE OPTIMIZED**
+#### **Apple Silicon (M1/M2/M3/M4): the tuned path**
 -   **Native Execution (Recommended):** Runs **~21× faster** than the Docker CPU baseline (with the tuning) by using the full capabilities of Apple Silicon, including GPU acceleration via Metal Performance Shaders (MPS) and the unified memory architecture.
 -   **Docker (CPU-Only):** Provides reproducibility but is limited to CPU-only processing due to Docker's virtualization constraints on macOS.
 
